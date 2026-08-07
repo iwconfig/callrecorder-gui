@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -36,12 +37,16 @@ class TranscriptionWorker(
         val serverUrl = inputData.getString(KEY_SERVER_URL)
         val useRemote = inputData.getBoolean(KEY_USE_REMOTE, false)
 
+        Log.d(TAG, "doWork: baseName=$baseName, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
+
         try {
             setForegroundAsync(buildForegroundInfo("Starting transcription...", 0, "starting"))
 
             val engine: TranscriptionEngine = if (useRemote && !serverUrl.isNullOrBlank()) {
+                Log.d(TAG, "Using RemoteTranscriptionEngine")
                 RemoteTranscriptionEngine(serverUrl, okhttp3.OkHttpClient.Builder().build())
             } else {
+                Log.d(TAG, "Using OnDeviceTranscriptionEngine")
                 OnDeviceTranscriptionEngine()
             }
 
@@ -49,6 +54,8 @@ class TranscriptionWorker(
             val transcriptionResult = engine.transcribe(applicationContext, audioUri, modelName, language)
 
             if (!transcriptionResult.isSuccess) {
+                val error = transcriptionResult.exceptionOrNull()
+                Log.e(TAG, "Transcription failed", error)
                 setForegroundAsync(buildForegroundInfo("Transcription failed", 0, "failed"))
                 return@withContext Result.failure()
             }
@@ -66,7 +73,7 @@ class TranscriptionWorker(
             setForegroundAsync(buildForegroundInfo("Completed", 100, "completed"))
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Transcription error", e)
             setForegroundAsync(buildForegroundInfo("Error: ${e.message}", 0, "error"))
             Result.failure()
         }
@@ -115,6 +122,7 @@ class TranscriptionWorker(
     companion object {
         const val CHANNEL_ID = "bcr_transcription_channel"
         const val NOTIFICATION_ID = 2027
+        private const val TAG = "TranscriptionWorker"
 
         const val KEY_FOLDER_URI = "folder_uri"
         const val KEY_BASE_NAME = "base_name"

@@ -1,6 +1,7 @@
 package com.android.bcrgui.transcription
 
 import android.content.Context
+import android.util.Log
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.TranscriptionSegment
 import okhttp3.MediaType.Companion.toMediaType
@@ -28,9 +29,12 @@ class RemoteTranscriptionEngine(
         language: String?
     ): Result<AiTranscription> {
         return try {
+            Log.d(TAG, "RemoteTranscriptionEngine: url=$serverUrl, model=$modelName, language=$language")
             val stream = context.contentResolver.openInputStream(audioUri) ?: return Result.failure(Exception("Cannot open audio URI"))
             val bytes = stream.readBytes()
             val base64Audio = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+
+            Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}, base64 size=${base64Audio.length}")
 
             val json = org.json.JSONObject().apply {
                 put("model", modelName)
@@ -48,7 +52,10 @@ class RemoteTranscriptionEngine(
                 .post(requestBody)
                 .build()
 
+            Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url}")
             val response = httpClient.newCall(request).execute()
+            Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
+
             if (!response.isSuccessful) {
                 return Result.failure(Exception("Server error: ${response.code} ${response.message}"))
             }
@@ -79,11 +86,16 @@ class RemoteTranscriptionEngine(
             )
             Result.success(transcription)
         } catch (e: Exception) {
+            Log.e(TAG, "RemoteTranscriptionEngine: error", e)
             Result.failure(e)
         }
     }
 
     override suspend fun cancel() {
+    }
+
+    companion object {
+        private const val TAG = "RemoteTranscriptionEngine"
     }
 }
 
