@@ -30,20 +30,26 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    # Step 4: Build both Debug and Release APKs
+    # Step 4: Setup signing key from secret
+    - name: Setup signing key
+      run: echo "${{ secrets.SIGNING_KEY }}" | base64 -d > bcrgui-key.jks
+
+    # Step 5: Build both Debug and Release APKs
     - name: Build Debug and Release APKs
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       run: |
         ./gradlew assembleDebug
         ./gradlew assembleRelease
 
-    # Step 5: Extract version name from build.gradle.kts
+    # Step 6: Extract version name from build.gradle.kts
     - name: Get version name from build.gradle.kts
       id: get_version
       run: |
         VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | head -n 1 | cut -d'"' -f2)
         echo "version=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-    # Step 6: Create GitHub Release and Upload APKs
+    # Step 7: Create GitHub Release and Upload APKs
     - name: Create Release
       if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
@@ -55,7 +61,7 @@ jobs:
           
           Assets included:
           - Debug APK
-          - Release APK (Signed with Debug keys)
+          - Release APK (Signed with release key)
         files: |
           app/build/outputs/apk/debug/*.apk
           app/build/outputs/apk/release/*.apk

@@ -33,3 +33,6 @@ as3_dump.txt
 # OS-generated files
 .DS_Store
 Thumbs.db
+
+# Keystore properties (contains passwords)
+keystore.properties

@@ -3,13 +3,21 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+import java.util.Properties
+
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 android {
     signingConfigs {
         create("releaseConfig") {
-            storeFile = file("bcrgui-key.jks")
-            storePassword = "awdkljui5454485611"
-            keyAlias = "bcrgui"
-            keyPassword = "awdkljui5454485611"
+            storeFile = file(keystoreProperties.getProperty("storeFile", "bcrgui-key.jks"))
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword", "")
+            keyAlias = keystoreProperties.getProperty("keyAlias", "bcrgui")
+            keyPassword = System.getenv("KEYSTORE_PASSWORD") ?: keystoreProperties.getProperty("keyPassword", "")
         }
     }
     namespace = "com.android.bcrgui"
