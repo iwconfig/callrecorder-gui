@@ -91,7 +91,6 @@ data class RecycledFile(
         } else {
             null
         }
-    }
 
     val formattedDateTime: String
         get() {

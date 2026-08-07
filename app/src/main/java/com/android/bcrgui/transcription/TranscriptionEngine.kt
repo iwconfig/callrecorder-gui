@@ -3,6 +3,7 @@ package com.android.bcrgui.transcription
 import android.content.Context
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.TranscriptionSegment
+import okhttp3.MediaType.Companion.toMediaType
 
 interface TranscriptionEngine {
     suspend fun transcribe(
@@ -38,7 +39,7 @@ class RemoteTranscriptionEngine(
             }
 
             val requestBody = okhttp3.RequestBody.create(
-                okhttp3.MediaType.parse("application/json"),
+                "application/json".toMediaType(),
                 json.toString()
             )
 
@@ -49,7 +50,7 @@ class RemoteTranscriptionEngine(
 
             val response = httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
-                return Result.failure(Exception("Server error: ${response.code()} ${response.message()}"))
+                return Result.failure(Exception("Server error: ${response.code} ${response.message}"))
             }
 
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty response"))

@@ -55,10 +55,17 @@ fun SettingsDialog(
     var tempExtension by remember { mutableStateOf(currentExtension) }
     var tempAccentColor by remember { mutableStateOf(currentAccentColor) }
     var tempAmoledMode by remember { mutableStateOf(currentAmoledMode) }
-    var tempAiServerUrl by remember { mutableStateOf(viewModel.aiServerUrl.collectAsState().value) }
-    var tempAiModel by remember { mutableStateOf(viewModel.aiModel.collectAsState().value) }
-    var tempAiAutoTranscribe by remember { mutableStateOf(viewModel.aiAutoTranscribe.collectAsState().value) }
-    var tempAiLlmProvider by remember { mutableStateOf(viewModel.aiLlmProvider.collectAsState().value) }
+
+    val aiServerUrl by viewModel.aiServerUrl.collectAsState()
+    val aiModel by viewModel.aiModel.collectAsState()
+    val aiAutoTranscribe by viewModel.aiAutoTranscribe.collectAsState()
+    val aiLlmProvider by viewModel.aiLlmProvider.collectAsState()
+
+    var tempAiServerUrl by remember { mutableStateOf(aiServerUrl) }
+    var tempAiModel by remember { mutableStateOf(aiModel) }
+    var tempAiAutoTranscribe by remember { mutableStateOf(aiAutoTranscribe) }
+    var tempAiLlmProvider by remember { mutableStateOf(aiLlmProvider) }
+
     var showResetConfirm by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
 

@@ -36,3 +36,6 @@ Thumbs.db
 
 # Keystore properties (contains passwords)
 keystore.properties
+
+# Keystore file (should be provided via CI secret or local only)
+app/bcrgui-key.jks
