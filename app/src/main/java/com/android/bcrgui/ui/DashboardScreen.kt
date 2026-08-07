@@ -515,19 +515,23 @@ fun DashboardScreen(
                         }
                     )
                     if (rec.transcriptionStatus != "completed") {
+                        val isRemote = viewModel.aiServerUrl.collectAsState().value.isNotBlank()
                         DropdownMenuItem(
-                            text = { Text("Transcribe & Generate Metadata") },
+                            text = { Text(if (isRemote) "Transcribe (Remote)" else "Transcribe (On-device)") },
                             onClick = {
                                 viewModel.transcribeRecording(rec)
                                 contextMenuRecording = null
+                                android.widget.Toast.makeText(context, "Transcription started", android.widget.Toast.LENGTH_SHORT).show()
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.GraphicEq,
+                                    imageVector = Icons.Default.GraphicEq,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
+                        )
+                    }
                         )
                     }
                 }

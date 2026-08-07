@@ -405,6 +405,11 @@ fun SettingsDialog(
                         placeholder = { Text("Remote server URL (leave empty for on-device)") },
                         leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) }
                     )
+                    Text(
+                        text = if (tempAiServerUrl.isNotBlank()) "Mode: Remote server transcription" else "Mode: On-device transcription (not yet implemented)",
+                        fontSize = 10.sp,
+                        color = if (tempAiServerUrl.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

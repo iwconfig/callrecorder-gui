@@ -72,10 +72,14 @@ fun PlayerSheet(
         label = "PlayerAnimation"
     ) { expanded ->
         if (expanded) {
-            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-            val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-            if (isLandscape) {
+                if (isLandscape) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -192,11 +196,12 @@ fun PlayerSheet(
                                                         fontSize = 10.sp,
                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                    }
+                }
+            }
+        }
+    }
+}
                             }
                         }
                     }

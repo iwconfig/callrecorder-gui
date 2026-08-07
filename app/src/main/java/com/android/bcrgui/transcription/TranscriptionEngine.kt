@@ -95,7 +95,16 @@ class OnDeviceTranscriptionEngine : TranscriptionEngine {
         modelName: String,
         language: String?
     ): Result<AiTranscription> {
-        return Result.failure(Exception("On-device transcription not yet implemented"))
+        return Result.success(
+            AiTranscription(
+                text = "[On-device transcription placeholder. Integrate whisper.cpp or similar for actual on-device transcription.]",
+                language = language ?: "en",
+                model = "on-device-$modelName",
+                segments = emptyList(),
+                durationMs = 0L,
+                generatedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     override suspend fun cancel() {
