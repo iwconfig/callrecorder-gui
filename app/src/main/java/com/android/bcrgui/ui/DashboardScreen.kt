@@ -514,28 +514,26 @@ fun DashboardScreen(
                             )
                         }
                     )
-                    if (rec.transcriptionStatus != "completed") {
-                        val isRemote = viewModel.aiServerUrl.collectAsState().value.isNotBlank()
-                        DropdownMenuItem(
-                            text = { Text(if (isRemote) "Transcribe (Remote)" else "Transcribe (On-device)") },
-                            onClick = {
-                                viewModel.transcribeRecording(rec)
-                                contextMenuRecording = null
-                                android.widget.Toast.makeText(context, "Transcription started", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.GraphicEq,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        )
-                    }
-                        )
-                    }
-                }
-            }
+                     if (rec.transcriptionStatus != "completed") {
+                         val isRemote = viewModel.aiServerUrl.collectAsState().value.isNotBlank()
+                         DropdownMenuItem(
+                             text = { Text(if (isRemote) "Transcribe (Remote)" else "Transcribe (On-device)") },
+                             onClick = {
+                                 viewModel.transcribeRecording(rec)
+                                 contextMenuRecording = null
+                                 android.widget.Toast.makeText(context, "Transcription started", android.widget.Toast.LENGTH_SHORT).show()
+                             },
+                             leadingIcon = {
+                                 Icon(
+                                     imageVector = Icons.Default.GraphicEq,
+                                     contentDescription = null,
+                                     tint = MaterialTheme.colorScheme.primary
+                                 )
+                             }
+                         )
+                     }
+                 }
+             }
 
             // Delete Confirmation Dialog (Single Item)
             showDeleteConfirmDialog?.let { rec ->
@@ -993,8 +991,8 @@ fun RecordingItem(
                 else -> Color(0xFFFF9800) // Orange (Conference/other)
             }
             val directionIcon = when (recording.direction?.lowercase()) {
-                "in" -> Icons.Default.CallReceived
-                "out" -> Icons.Default.CallMade
+                "in" -> Icons.AutoMirrored.Default.CallReceived
+                "out" -> Icons.AutoMirrored.Default.CallMade
                 else -> Icons.Default.Call
             }
 
@@ -1023,7 +1021,7 @@ fun RecordingItem(
                         )
                     } else if (isPlaying) {
                         Icon(
-                            imageVector = Icons.Default.VolumeUp,
+                            imageVector = Icons.AutoMirrored.Default.VolumeUp,
                             contentDescription = "Playing",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)

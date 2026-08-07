@@ -6,8 +6,10 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,9 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.android.bcrgui.model.CallRecording
 import com.android.bcrgui.model.Bookmark
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.AiMetadata
@@ -48,7 +47,6 @@ fun PlayerSheet(
     var showTranscript by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
     var showAddBookmarkDialog by remember { mutableStateOf(false) }
-    var editingBookmark by remember { mutableStateOf<Bookmark?>(null) }
     var bookmarkLabel by remember { mutableStateOf("") }
     val context = LocalContext.current
 
@@ -76,274 +74,6 @@ fun PlayerSheet(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.surface
             ) {
-                val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-                val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-
-                if (isLandscape) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 12.dp)
-                        .windowInsetsPadding(WindowInsets.safeDrawing),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(0.4f)
-                            .fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { viewModel.skipBackward() }, modifier = Modifier.size(48.dp)) {
-                                Icon(Icons.Default.Replay10, contentDescription = "Back 10s", modifier = Modifier.size(28.dp))
-                            }
-
-                            FloatingActionButton(
-                                onClick = { viewModel.togglePlayPause() },
-                                shape = CircleShape,
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(64.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-
-                            IconButton(onClick = { viewModel.skipForward() }, modifier = Modifier.size(48.dp)) {
-                                Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", modifier = Modifier.size(28.dp))
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { showBookmarks = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Bookmark,
-                                    contentDescription = "Bookmarks",
-                                    tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            IconButton(onClick = { showTranscript = !showTranscript }) {
-                                Icon(
-                                    imageVector = Icons.Default.Description,
-                                    contentDescription = "Transcript",
-                                    tint = if (showTranscript) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        val currentTranscript = transcript
-                        if (showTranscript && currentTranscript != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "Transcript",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = currentTranscript.text,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.verticalScroll(rememberScrollState())
-                                    )
-                                }
-                            }
-                        }
-
-                        val currentMetadata = metadata
-                        if (currentMetadata != null && currentMetadata.summary != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = "AI Summary",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                    Text(
-                                        text = currentMetadata.summary ?: "",
-                                        fontSize = 12.sp
-                                    )
-                                    if (!currentMetadata.tags.isNullOrEmpty()) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            currentMetadata.tags.forEach { tag ->
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                ) {
-                                                    Text(
-                                                        text = tag,
-                                                        fontSize = 10.sp,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    )
-                    }
-                }
-            }
-        }
-    }
-}
-                            }
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .weight(0.6f)
-                            .fillMaxHeight(),
-                        verticalArrangement = Arrangement.SpaceAround,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { isExpanded = false }) {
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
-                            }
-                            Text(
-                                text = "Now Playing",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            IconButton(onClick = {
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "audio/*"
-                                    putExtra(Intent.EXTRA_STREAM, rec.uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share Recording"))
-                            }) {
-                                Icon(Icons.Default.Share, contentDescription = "Share")
-                            }
-                        }
-
-                        val dirColor = when (rec.direction?.lowercase()) {
-                            "in" -> Color(0xFF4CAF50)
-                            "out" -> Color(0xFF6200EE)
-                            else -> Color(0xFFFF9800)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(dirColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = when (rec.direction?.lowercase()) {
-                                    "in" -> Icons.Default.CallReceived
-                                    "out" -> Icons.Default.CallMade
-                                    else -> Icons.Default.Call
-                                },
-                                contentDescription = null,
-                                tint = dirColor,
-                                modifier = Modifier.size(38.dp)
-                            )
-                        }
-
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = rec.resolvedName,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            rec.resolvedSubtext?.let { sub ->
-                                Text(
-                                    text = sub,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Slider(
-                                value = currentPosition.toFloat(),
-                                onValueChange = { viewModel.seekTo(it.toLong()) },
-                                valueRange = 0f..(if (duration > 0) duration.toFloat() else 100f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = formatDuration(currentPosition),
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = formatDuration(duration),
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
-                                val isSelected = playbackSpeed == speed
-                                Box(
-                                    modifier = Modifier
-                                        .padding(horizontal = 4.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                            else Color.Transparent
-                                        )
-                                        .clickable { viewModel.setPlaybackSpeed(speed) }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = "${speed}x",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -393,8 +123,8 @@ fun PlayerSheet(
                     ) {
                         Icon(
                             imageVector = when (rec.direction?.lowercase()) {
-                                "in" -> Icons.Default.CallReceived
-                                "out" -> Icons.Default.CallMade
+                                "in" -> Icons.AutoMirrored.Default.CallReceived
+                                "out" -> Icons.AutoMirrored.Default.CallMade
                                 else -> Icons.Default.Call
                             },
                             contentDescription = null,
@@ -531,6 +261,95 @@ fun PlayerSheet(
                         }
                     }
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { showBookmarks = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = "Bookmarks",
+                                tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        IconButton(onClick = { showTranscript = !showTranscript }) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = "Transcript",
+                                tint = if (showTranscript) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (showTranscript) {
+                        val currentTranscript = transcript
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Transcript",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (currentTranscript != null) {
+                                    Text(
+                                        text = currentTranscript.text,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.verticalScroll(rememberScrollState())
+                                    )
+                                } else {
+                                    Text(
+                                        text = "No transcript available",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (metadata != null && metadata.summary != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "AI Summary",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    text = metadata.summary ?: "",
+                                    fontSize = 12.sp
+                                )
+                                if (!metadata.tags.isNullOrEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        metadata.tags.forEach { tag ->
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            ) {
+                                                Text(
+                                                    text = tag,
+                                                    fontSize = 10.sp,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.weight(0.2f))
                 }
             }
@@ -577,8 +396,8 @@ fun PlayerSheet(
                         ) {
                             Icon(
                                 imageVector = when (rec.direction?.lowercase()) {
-                                    "in" -> Icons.Default.CallReceived
-                                    "out" -> Icons.Default.CallMade
+                                    "in" -> Icons.AutoMirrored.Default.CallReceived
+                                    "out" -> Icons.AutoMirrored.Default.CallMade
                                     else -> Icons.Default.Call
                                 },
                                 contentDescription = null,
