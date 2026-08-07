@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.default.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -124,8 +123,8 @@ fun PlayerSheet(
                     ) {
                         Icon(
                             imageVector = when (rec.direction?.lowercase()) {
-                                "in" -> Icons.AutoMirrored.Default.CallReceived
-                                "out" -> Icons.AutoMirrored.Default.CallMade
+                                "in" -> Icons.Default.CallReceived
+                                "out" -> Icons.Default.CallMade
                                 else -> Icons.Default.Call
                             },
                             contentDescription = null,
@@ -398,8 +397,8 @@ fun PlayerSheet(
                         ) {
                             Icon(
                                 imageVector = when (rec.direction?.lowercase()) {
-                                    "in" -> Icons.AutoMirrored.Default.CallReceived
-                                    "out" -> Icons.AutoMirrored.Default.CallMade
+                                    "in" -> Icons.Default.CallReceived
+                                    "out" -> Icons.Default.CallMade
                                     else -> Icons.Default.Call
                                 },
                                 contentDescription = null,

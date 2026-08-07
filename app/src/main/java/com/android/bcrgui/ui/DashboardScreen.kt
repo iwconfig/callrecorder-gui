@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.default.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -992,8 +991,8 @@ fun RecordingItem(
                 else -> Color(0xFFFF9800) // Orange (Conference/other)
             }
             val directionIcon = when (recording.direction?.lowercase()) {
-                "in" -> Icons.AutoMirrored.Default.CallReceived
-                "out" -> Icons.AutoMirrored.Default.CallMade
+                "in" -> Icons.Default.CallReceived
+                "out" -> Icons.Default.CallMade
                 else -> Icons.Default.Call
             }
 
@@ -1022,7 +1021,7 @@ fun RecordingItem(
                         )
                     } else if (isPlaying) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Default.VolumeUp,
+                            imageVector = Icons.Default.VolumeUp,
                             contentDescription = "Playing",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
