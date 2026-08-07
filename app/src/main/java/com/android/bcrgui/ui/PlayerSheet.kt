@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.default.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -313,7 +314,8 @@ fun PlayerSheet(
                         }
                     }
 
-                    if (metadata != null && metadata.summary != null) {
+                    val currentMetadata = metadata
+                    if (currentMetadata != null && currentMetadata.summary != null) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
@@ -326,13 +328,13 @@ fun PlayerSheet(
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
                                 Text(
-                                    text = metadata.summary ?: "",
+                                    text = currentMetadata.summary ?: "",
                                     fontSize = 12.sp
                                 )
-                                if (!metadata.tags.isNullOrEmpty()) {
+                                if (!currentMetadata.tags.isNullOrEmpty()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        metadata.tags.forEach { tag ->
+                                        currentMetadata.tags.forEach { tag ->
                                             Surface(
                                                 shape = RoundedCornerShape(4.dp),
                                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
