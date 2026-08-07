@@ -481,11 +481,7 @@ fun DashboardScreen(
                                         }
                                     },
                                     onLongClick = {
-                                        selectedRecordings = if (selectedRecordings.contains(rec)) {
-                                            selectedRecordings - rec
-                                        } else {
-                                            selectedRecordings + rec
-                                        }
+                                        contextMenuRecording = rec
                                     }
                                 )
                             }
