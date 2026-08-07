@@ -514,6 +514,22 @@ fun DashboardScreen(
                             )
                         }
                     )
+                    if (rec.transcriptionStatus != "completed") {
+                        DropdownMenuItem(
+                            text = { Text("Transcribe & Generate Metadata") },
+                            onClick = {
+                                viewModel.transcribeRecording(rec)
+                                contextMenuRecording = null
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.GraphicEq,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        )
+                    }
                 }
             }
 
@@ -1104,6 +1120,23 @@ fun RecordingItem(
                             contentDescription = "Metadata JSON Loaded",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    if (recording.transcriptionStatus == "completed") {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Transcription Completed",
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    if (recording.bookmarkCount > 0) {
+                        Text(
+                            text = recording.bookmarkCount.toString(),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 2.dp)
                         )
                     }
                 }

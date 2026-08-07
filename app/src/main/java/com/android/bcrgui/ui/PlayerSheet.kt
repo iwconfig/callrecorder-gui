@@ -21,7 +21,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.android.bcrgui.model.CallRecording
+import com.android.bcrgui.model.Bookmark
+import com.android.bcrgui.model.AiTranscription
+import com.android.bcrgui.model.AiMetadata
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,8 +40,16 @@ fun PlayerSheet(
     val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
+    val bookmarks by viewModel.selectedBookmarks.collectAsState()
+    val transcript by viewModel.selectedTranscript.collectAsState()
+    val metadata by viewModel.selectedMetadata.collectAsState()
 
     var isExpanded by remember { mutableStateOf(false) }
+    var showTranscript by remember { mutableStateOf(false) }
+    var showBookmarks by remember { mutableStateOf(false) }
+    var showAddBookmarkDialog by remember { mutableStateOf(false) }
+    var editingBookmark by remember { mutableStateOf<Bookmark?>(null) }
+    var bookmarkLabel by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     if (isExpanded) {
@@ -85,14 +98,113 @@ fun PlayerSheet(
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             // Top row for minimize and share
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { viewModel.skipBackward() }, modifier = Modifier.size(48.dp)) {
+                                Icon(Icons.Default.Replay10, contentDescription = "Back 10s", modifier = Modifier.size(28.dp))
+                            }
+
+                            FloatingActionButton(
+                                onClick = { viewModel.togglePlayPause() },
+                                shape = CircleShape,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(64.dp)
                             ) {
-                                IconButton(onClick = { isExpanded = false }) {
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            IconButton(onClick = { viewModel.skipForward() }, modifier = Modifier.size(48.dp)) {
+                                Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", modifier = Modifier.size(28.dp))
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { showBookmarks = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Bookmark,
+                                    contentDescription = "Bookmarks",
+                                    tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            IconButton(onClick = { showTranscript = !showTranscript }) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = "Transcript",
+                                    tint = if (showTranscript) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (showTranscript && transcript != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "Transcript",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = transcript.text,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.verticalScroll(rememberScrollState())
+                                    )
                                 }
+                            }
+                        }
+
+                        if (metadata != null && metadata.summary != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "AI Summary",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                    Text(
+                                        text = metadata.summary ?: "",
+                                        fontSize = 12.sp
+                                    )
+                                    if (!metadata.tags.isNullOrEmpty()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            metadata.tags.forEach { tag ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = tag,
+                                                        fontSize = 10.sp,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                                 Text(
                                     text = "Now Playing",
                                     fontWeight = FontWeight.Bold,
@@ -544,6 +656,146 @@ fun PlayerSheet(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close Player"
                             )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showBookmarks && rec != null) {
+        BookmarksBottomSheet(
+            bookmarks = bookmarks,
+            duration = duration,
+            onDismiss = { showBookmarks = false },
+            onSeek = { timestampMs ->
+                viewModel.seekTo(timestampMs)
+                showBookmarks = false
+            },
+            onAdd = { timestampMs ->
+                showAddBookmarkDialog = true
+            },
+            onDelete = { timestampMs ->
+                viewModel.deleteBookmark(rec, timestampMs)
+            },
+            onEditLabel = { timestampMs, newLabel ->
+                viewModel.updateBookmarkLabel(rec, timestampMs, newLabel)
+            }
+        )
+    }
+
+    if (showAddBookmarkDialog && rec != null) {
+        AlertDialog(
+            onDismissRequest = { showAddBookmarkDialog = false },
+            title = { Text("Add Bookmark") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Current position: ${formatDuration(currentPosition)}")
+                    OutlinedTextField(
+                        value = bookmarkLabel,
+                        onValueChange = { bookmarkLabel = it },
+                        label = { Text("Bookmark label") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.addBookmark(rec, currentPosition, bookmarkLabel)
+                    bookmarkLabel = ""
+                    showAddBookmarkDialog = false
+                }) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddBookmarkDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun BookmarksBottomSheet(
+    bookmarks: List<Bookmark>,
+    duration: Long,
+    onDismiss: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onAdd: () -> Unit,
+    onDelete: (Long) -> Unit,
+    onEditLabel: (Long, String) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Bookmarks", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Button(onClick = onAdd, modifier = Modifier.height(36.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Current", fontSize = 12.sp)
+                }
+            }
+
+            if (bookmarks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No bookmarks yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                bookmarks.sortedBy { it.timestampMs }.forEach { bm ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSeek(bm.timestampMs) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = bm.label.ifBlank { "Bookmark" },
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = formatDuration(bm.timestampMs),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(onClick = { onDelete(bm.timestampMs) }, modifier = Modifier.size(32.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

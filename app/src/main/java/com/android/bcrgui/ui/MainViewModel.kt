@@ -16,12 +16,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.android.bcrgui.model.Bookmark
+import com.android.bcrgui.model.BookmarkRepository
+import com.android.bcrgui.transcription.TranscriptionWorker
+import com.android.bcrgui.transcription.TranscriptRepository
+import com.android.bcrgui.transcription.MetadataRepository
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = PreferencesManager(application)
     private val repository = RecordingRepository(application)
+    private val bookmarkRepository = BookmarkRepository(application)
+    private val transcriptRepository = TranscriptRepository(application)
+    private val metadataRepository = MetadataRepository(application)
     val audioPlayer = BcrAudioPlayer(application)
+    private val workManager = WorkManager.getInstance(application)
 
     // Configuration States
     private val _folderUri = MutableStateFlow<String?>(prefs.folderUri)
@@ -41,6 +53,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _amoledMode = MutableStateFlow(prefs.amoledMode)
     val amoledMode: StateFlow<Boolean> = _amoledMode
+
+    private val _aiServerUrl = MutableStateFlow(prefs.aiServerUrl)
+    val aiServerUrl: StateFlow<String> = _aiServerUrl
+
+    private val _aiModel = MutableStateFlow(prefs.aiModel)
+    val aiModel: StateFlow<String> = _aiModel
+
+    private val _aiAutoTranscribe = MutableStateFlow(prefs.aiAutoTranscribe)
+    val aiAutoTranscribe: StateFlow<Boolean> = _aiAutoTranscribe
+
+    private val _aiLlmProvider = MutableStateFlow(prefs.aiLlmProvider)
+    val aiLlmProvider: StateFlow<String> = _aiLlmProvider
 
     // UI States
     private val _rawRecordings = MutableStateFlow<List<CallRecording>>(emptyList())
@@ -79,6 +103,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _contactNames = MutableStateFlow<List<String>>(emptyList())
     val contactNames: StateFlow<List<String>> = _contactNames
+
+    private val _selectedTranscript = MutableStateFlow<com.android.bcrgui.model.AiTranscription?>(null)
+    val selectedTranscript: StateFlow<com.android.bcrgui.model.AiTranscription?> = _selectedTranscript
+
+    private val _selectedMetadata = MutableStateFlow<com.android.bcrgui.model.AiMetadata?>(null)
+    val selectedMetadata: StateFlow<com.android.bcrgui.model.AiMetadata?> = _selectedMetadata
+
+    private val _selectedBookmarks = MutableStateFlow<List<com.android.bcrgui.model.Bookmark>>(emptyList())
+    val selectedBookmarks: StateFlow<List<com.android.bcrgui.model.Bookmark>> = _selectedBookmarks
 
     private var contactsMap = emptyMap<String, String>()
 
@@ -333,6 +366,123 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadRecordings()
     }
 
+    fun saveAiSettings(serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String) {
+        prefs.aiServerUrl = serverUrl
+        prefs.aiModel = model
+        prefs.aiAutoTranscribe = autoTranscribe
+        prefs.aiLlmProvider = llmProvider
+
+        _aiServerUrl.value = serverUrl
+        _aiModel.value = model
+        _aiAutoTranscribe.value = autoTranscribe
+        _aiLlmProvider.value = llmProvider
+    }
+
+    fun transcribeRecording(recording: CallRecording) {
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        val inputData = androidx.work.Data.Builder()
+            .putString(TranscriptionWorker.KEY_FOLDER_URI, folder)
+            .putString(TranscriptionWorker.KEY_BASE_NAME, baseName)
+            .putString(TranscriptionWorker.KEY_AUDIO_URI, recording.uri.toString())
+            .putString(TranscriptionWorker.KEY_MODEL_NAME, _aiModel.value)
+            .putString(TranscriptionWorker.KEY_SERVER_URL, _aiServerUrl.value)
+            .putBoolean(TranscriptionWorker.KEY_USE_REMOTE, _aiServerUrl.value.isNotBlank())
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<TranscriptionWorker>()
+            .setInputData(inputData)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "transcribe_$baseName",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+
+        loadRecordings()
+    }
+
+    fun loadSelectedTranscript() {
+        val recording = _selectedRecording.value ?: return
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val transcript = transcriptRepository.getTranscript(folder, baseName)
+            _selectedTranscript.value = transcript
+        }
+    }
+
+    fun loadSelectedMetadata() {
+        val recording = _selectedRecording.value ?: return
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val metadata = metadataRepository.getMetadata(folder, baseName)
+            _selectedMetadata.value = metadata
+        }
+    }
+
+    fun loadSelectedBookmarks() {
+        val recording = _selectedRecording.value ?: return
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val bookmarks = bookmarkRepository.getBookmarks(folder, baseName)
+            _selectedBookmarks.value = bookmarks
+        }
+    }
+
+    fun addBookmark(recording: CallRecording, timestampMs: Long, label: String) {
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val bookmarks = bookmarkRepository.getBookmarks(folder, baseName).toMutableList()
+            bookmarks.add(com.android.bcrgui.model.Bookmark(timestampMs = timestampMs, label = label))
+            bookmarkRepository.saveBookmarks(folder, baseName, bookmarks)
+            _selectedBookmarks.value = bookmarks
+            loadRecordings()
+        }
+    }
+
+    fun deleteBookmark(recording: CallRecording, timestampMs: Long) {
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val bookmarks = bookmarkRepository.getBookmarks(folder, baseName)
+                .filter { it.timestampMs != timestampMs }
+            bookmarkRepository.saveBookmarks(folder, baseName, bookmarks)
+            _selectedBookmarks.value = bookmarks
+            loadRecordings()
+        }
+    }
+
+    fun updateBookmarkLabel(recording: CallRecording, timestampMs: Long, newLabel: String) {
+        val folder = _folderUri.value ?: return
+        val dotIndex = recording.displayName.lastIndexOf('.')
+        val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+
+        viewModelScope.launch {
+            val bookmarks = bookmarkRepository.getBookmarks(folder, baseName).map {
+                if (it.timestampMs == timestampMs) it.copy(label = newLabel) else it
+            }
+            bookmarkRepository.saveBookmarks(folder, baseName, bookmarks)
+            _selectedBookmarks.value = bookmarks
+        }
+    }
+
     fun completeOnboarding(folder: String, template: String, extension: String) {
         saveSettings(folder, template, extension, PreferencesManager.DEFAULT_ACCENT_COLOR, false)
         prefs.isOnboardingCompleted = true
@@ -346,9 +496,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _fileExtension.value = PreferencesManager.DEFAULT_EXTENSION
         _accentColor.value = PreferencesManager.DEFAULT_ACCENT_COLOR
         _amoledMode.value = false
+        _aiServerUrl.value = PreferencesManager.DEFAULT_AI_SERVER_URL
+        _aiModel.value = PreferencesManager.DEFAULT_AI_MODEL
+        _aiAutoTranscribe.value = false
+        _aiLlmProvider.value = PreferencesManager.DEFAULT_AI_LLM_PROVIDER
         _isOnboardingCompleted.value = false
         _rawRecordings.value = emptyList()
         _selectedRecording.value = null
+        _selectedTranscript.value = null
+        _selectedMetadata.value = null
+        _selectedBookmarks.value = emptyList()
         audioPlayer.stop()
     }
 
@@ -360,8 +517,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 recording.resolvedName,
                 recording.resolvedSubtext ?: ""
             )
+            loadSelectedTranscript()
+            loadSelectedMetadata()
+            loadSelectedBookmarks()
         } else {
             audioPlayer.stop()
+            _selectedTranscript.value = null
+            _selectedMetadata.value = null
+            _selectedBookmarks.value = emptyList()
         }
     }
 

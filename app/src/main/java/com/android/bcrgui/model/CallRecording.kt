@@ -16,7 +16,10 @@ data class CallRecording(
     val callLogName: String?,
     val durationMs: Long,
     val hasMetadataJson: Boolean,
-    val packageName: String? = null
+    val packageName: String? = null,
+    val transcriptionStatus: String? = null,
+    val metadataStatus: String? = null,
+    val bookmarkCount: Int = 0
 ) {
     /**
      * Resolves the primary name to display. 
@@ -88,4 +91,42 @@ data class RecycledFile(
         } else {
             null
         }
+    }
+
+    val formattedDateTime: String
+        get() {
+            val formatter = java.text.SimpleDateFormat("MMM d, yyyy • h:mm a", java.util.Locale.getDefault())
+            return formatter.format(java.util.Date(lastModified))
+        }
 }
+
+data class Bookmark(
+    val timestampMs: Long,
+    val label: String,
+    val color: String? = null,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class TranscriptionSegment(
+    val startMs: Long,
+    val endMs: Long,
+    val text: String
+)
+
+data class AiTranscription(
+    val text: String,
+    val language: String? = null,
+    val model: String,
+    val segments: List<TranscriptionSegment> = emptyList(),
+    val durationMs: Long = 0L,
+    val generatedAt: Long = System.currentTimeMillis()
+)
+
+data class AiMetadata(
+    val summary: String? = null,
+    val category: String? = null,
+    val tags: List<String> = emptyList(),
+    val notes: String? = null,
+    val transcriptionRef: String? = null,
+    val generatedAt: Long = System.currentTimeMillis()
+)

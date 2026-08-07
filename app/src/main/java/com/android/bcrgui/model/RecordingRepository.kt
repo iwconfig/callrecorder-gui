@@ -9,8 +9,11 @@ import org.json.JSONObject
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 class RecordingRepository(private val context: Context) {
+    private val bookmarkRepository = BookmarkRepository(context)
 
     /**
      * Scans the given SAF Tree Uri and returns a parsed list of call recordings.
@@ -39,6 +42,9 @@ class RecordingRepository(private val context: Context) {
         // Map to hold audio documents and metadata JSON documents
         val audioFiles = mutableListOf<DocInfo>()
         val jsonFiles = mutableMapOf<String, Uri>()
+        val bookmarkFiles = mutableMapOf<String, Uri>()
+        val transcriptFiles = mutableMapOf<String, Uri>()
+        val metadataFiles = mutableMapOf<String, Uri>()
 
         val projection = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -64,16 +70,32 @@ class RecordingRepository(private val context: Context) {
                     val dotIndex = name.lastIndexOf('.')
                     val ext = if (dotIndex != -1) name.substring(dotIndex + 1).lowercase() else ""
 
-                    if (name.lowercase().endsWith(".json")) {
-                        val baseName = name.substring(0, name.length - 5) // strip .json
-                        jsonFiles[baseName] = docUri
-                    } else if (isAllExt) {
-                        if (ext.isNotEmpty() && !videoExtensions.contains(ext)) {
-                            audioFiles.add(DocInfo(docUri, name, size, lastModified))
+                    when {
+                        name.lowercase().endsWith(".bookmarks.json") -> {
+                            val baseName = name.substring(0, name.length - 14)
+                            bookmarkFiles[baseName] = docUri
                         }
-                    } else {
-                        if (name.lowercase().endsWith(audioExtension)) {
-                            audioFiles.add(DocInfo(docUri, name, size, lastModified))
+                        name.lowercase().endsWith(".transcript.json") -> {
+                            val baseName = name.substring(0, name.length - 15)
+                            transcriptFiles[baseName] = docUri
+                        }
+                        name.lowercase().endsWith(".metadata.json") -> {
+                            val baseName = name.substring(0, name.length - 14)
+                            metadataFiles[baseName] = docUri
+                        }
+                        name.lowercase().endsWith(".json") -> {
+                            val baseName = name.substring(0, name.length - 5)
+                            jsonFiles[baseName] = docUri
+                        }
+                        isAllExt -> {
+                            if (ext.isNotEmpty() && !videoExtensions.contains(ext)) {
+                                audioFiles.add(DocInfo(docUri, name, size, lastModified))
+                            }
+                        }
+                        else -> {
+                            if (name.lowercase().endsWith(audioExtension)) {
+                                audioFiles.add(DocInfo(docUri, name, size, lastModified))
+                            }
                         }
                     }
                 }
@@ -97,7 +119,20 @@ class RecordingRepository(private val context: Context) {
                 recording = parseFilenameMetadata(audioDoc, templateParser)
             }
 
-            recordings.add(recording)
+            if (recording != null) {
+                val bookmarkCount = bookmarkRepository.getBookmarks(folderUriStr, baseName).size
+                val hasTranscript = transcriptFiles.containsKey(baseName)
+                val hasMetadata = metadataFiles.containsKey(baseName)
+                val transcriptionStatus = if (hasTranscript) "completed" else null
+                val metadataStatus = if (hasMetadata) "completed" else null
+                recordings.add(
+                    recording.copy(
+                        bookmarkCount = bookmarkCount,
+                        transcriptionStatus = transcriptionStatus,
+                        metadataStatus = metadataStatus
+                    )
+                )
+            }
         }
 
         // Sort by date/lastModified descending by default (newest first)
@@ -242,47 +277,47 @@ class RecordingRepository(private val context: Context) {
             // 2. Delete original SAF document
             DocumentsContract.deleteDocument(context.contentResolver, recording.uri)
             
-            // 3. Try to copy and delete companion JSON metadata
-            if (recording.hasMetadataJson) {
-                val dotIndex = recording.displayName.lastIndexOf('.')
-                val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
-                val jsonName = "$baseName.json"
-                
-                val treeUri = Uri.parse(folderUriStr)
-                if (treeUri != null) {
-                    val treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri)
-                    val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, treeDocumentId)
-                    
-                    val projection = arrayOf(
-                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                        DocumentsContract.Document.COLUMN_DISPLAY_NAME
-                    )
-                    try {
-                        context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
-                            val idCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-                            val nameCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                            while (cursor.moveToNext()) {
-                                val curName = cursor.getString(nameCol)
-                                if (curName == jsonName) {
-                                    val jsonDocId = cursor.getString(idCol)
-                                    val jsonUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, jsonDocId)
-                                    
-                                    // Copy JSON to recycle bin
-                                    val destJson = File(recycleBinDir, jsonName)
-                                    context.contentResolver.openInputStream(jsonUri)?.use { input ->
-                                        destJson.outputStream().use { output ->
-                                            input.copyTo(output)
-                                        }
+            // 3. Try to copy and delete companion sidecar files
+            val dotIndex = recording.displayName.lastIndexOf('.')
+            val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+            val sidecarNames = listOf(
+                "$baseName.json",
+                "$baseName.bookmarks.json",
+                "$baseName.transcript.json",
+                "$baseName.metadata.json"
+            )
+
+            val treeUri = Uri.parse(folderUriStr)
+            if (treeUri != null) {
+                val treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri)
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, treeDocumentId)
+
+                val projection = arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME
+                )
+                try {
+                    context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                        val idCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                        val nameCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                        while (cursor.moveToNext()) {
+                            val curName = cursor.getString(nameCol)
+                            if (sidecarNames.contains(curName)) {
+                                val docId = cursor.getString(idCol)
+                                val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+
+                                val destFile = File(recycleBinDir, curName)
+                                context.contentResolver.openInputStream(docUri)?.use { input ->
+                                    destFile.outputStream().use { output ->
+                                        input.copyTo(output)
                                     }
-                                    // Delete original JSON document
-                                    DocumentsContract.deleteDocument(context.contentResolver, jsonUri)
-                                    break
                                 }
+                                DocumentsContract.deleteDocument(context.contentResolver, docUri)
                             }
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
             true
@@ -327,25 +362,34 @@ class RecordingRepository(private val context: Context) {
 
             srcFile.delete()
 
-            // Restore companion JSON if exists
+            // Restore companion sidecar files if they exist
             val dotIndex = fileName.lastIndexOf('.')
             val baseName = if (dotIndex != -1) fileName.substring(0, dotIndex) else fileName
-            val srcJson = File(recycleBinDir, "$baseName.json")
-            if (srcJson.exists()) {
-                val destJsonUri = DocumentsContract.createDocument(
-                    context.contentResolver,
-                    parentDocumentUri,
-                    "application/json",
-                    "$baseName.json"
-                )
-                if (destJsonUri != null) {
-                    context.contentResolver.openOutputStream(destJsonUri)?.use { output ->
-                        srcJson.inputStream().use { input ->
-                            input.copyTo(output)
+            val sidecarNames = listOf(
+                "$baseName.json",
+                "$baseName.bookmarks.json",
+                "$baseName.transcript.json",
+                "$baseName.metadata.json"
+            )
+
+            sidecarNames.forEach { sidecarName ->
+                val srcSidecar = File(recycleBinDir, sidecarName)
+                if (srcSidecar.exists()) {
+                    val destSidecarUri = DocumentsContract.createDocument(
+                        context.contentResolver,
+                        parentDocumentUri,
+                        "application/json",
+                        sidecarName
+                    )
+                    if (destSidecarUri != null) {
+                        context.contentResolver.openOutputStream(destSidecarUri)?.use { output ->
+                            srcSidecar.inputStream().use { input ->
+                                input.copyTo(output)
+                            }
                         }
                     }
+                    srcSidecar.delete()
                 }
-                srcJson.delete()
             }
             true
         } catch (e: Exception) {
@@ -428,9 +472,17 @@ class RecordingRepository(private val context: Context) {
         }
         val dotIndex = fileName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) fileName.substring(0, dotIndex) else fileName
-        val jsonFile = File(recycleBinDir, "$baseName.json")
-        if (jsonFile.exists()) {
-            success = jsonFile.delete() && success
+        val sidecarNames = listOf(
+            "$baseName.json",
+            "$baseName.bookmarks.json",
+            "$baseName.transcript.json",
+            "$baseName.metadata.json"
+        )
+        sidecarNames.forEach { sidecarName ->
+            val sidecarFile = File(recycleBinDir, sidecarName)
+            if (sidecarFile.exists()) {
+                success = sidecarFile.delete() && success
+            }
         }
         return success
     }

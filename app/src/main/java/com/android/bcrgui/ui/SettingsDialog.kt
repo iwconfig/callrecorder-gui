@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ fun SettingsDialog(
     currentAmoledMode: Boolean,
     onDismiss: () -> Unit,
     onSave: (folderUri: String?, template: String, extension: String, accentColor: String, amoledMode: Boolean) -> Unit,
+    onSaveAi: (serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String) -> Unit,
     onResetOnboarding: () -> Unit
 ) {
     val context = LocalContext.current
@@ -53,6 +55,10 @@ fun SettingsDialog(
     var tempExtension by remember { mutableStateOf(currentExtension) }
     var tempAccentColor by remember { mutableStateOf(currentAccentColor) }
     var tempAmoledMode by remember { mutableStateOf(currentAmoledMode) }
+    var tempAiServerUrl by remember { mutableStateOf(viewModel.aiServerUrl.collectAsState().value) }
+    var tempAiModel by remember { mutableStateOf(viewModel.aiModel.collectAsState().value) }
+    var tempAiAutoTranscribe by remember { mutableStateOf(viewModel.aiAutoTranscribe.collectAsState().value) }
+    var tempAiLlmProvider by remember { mutableStateOf(viewModel.aiLlmProvider.collectAsState().value) }
     var showResetConfirm by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
 
@@ -378,6 +384,57 @@ fun SettingsDialog(
                 HorizontalDivider()
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
+                        text = "AI Transcription & Metadata",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                    OutlinedTextField(
+                        value = tempAiServerUrl,
+                        onValueChange = { tempAiServerUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        singleLine = true,
+                        placeholder = { Text("Remote server URL (leave empty for on-device)") },
+                        leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto-transcribe new recordings",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Automatically start transcription after selection",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = tempAiAutoTranscribe,
+                            onCheckedChange = { tempAiAutoTranscribe = it },
+                            thumbContent = if (tempAiAutoTranscribe) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            } else null
+                        )
+                    }
+                }
+
+                HorizontalDivider()
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
                         text = "Storage & Cleanup",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
@@ -476,6 +533,7 @@ fun SettingsDialog(
             Button(
                 onClick = {
                     onSave(tempFolderUri, tempTemplate, tempExtension, tempAccentColor, tempAmoledMode)
+                    onSaveAi(tempAiServerUrl, tempAiModel, tempAiAutoTranscribe, tempAiLlmProvider)
                     onDismiss()
                 },
                 enabled = tempFolderUri != null && tempTemplate.isNotBlank()
