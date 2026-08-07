@@ -3,6 +3,7 @@ package com.android.bcrgui.transcription
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import com.android.bcrgui.model.AiMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,6 +11,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class MetadataRepository(private val context: Context) {
+
+    companion object {
+        private const val TAG = "MetadataRepository"
+    }
 
     suspend fun getMetadata(folderUriStr: String, baseName: String): AiMetadata? = withContext(Dispatchers.IO) {
         val treeUri = Uri.parse(folderUriStr) ?: return@withContext null
@@ -78,12 +83,14 @@ class MetadataRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
+                Log.d(TAG, "Saved metadata to $docUri")
                 true
             } else {
+                Log.w(TAG, "Failed to create document for metadata")
                 false
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error saving metadata", e)
             false
         }
     }

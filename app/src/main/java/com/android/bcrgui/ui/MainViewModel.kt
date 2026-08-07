@@ -383,6 +383,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
+        android.util.Log.d("MainViewModel", "transcribeRecording: baseName=$baseName, serverUrl=${_aiServerUrl.value}, useRemote=${_aiServerUrl.value.isNotBlank()}")
+
         val inputData = androidx.work.Data.Builder()
             .putString(TranscriptionWorker.KEY_FOLDER_URI, folder)
             .putString(TranscriptionWorker.KEY_BASE_NAME, baseName)
@@ -402,6 +404,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             request
         )
 
+        android.util.Log.d("MainViewModel", "Enqueued transcription work: transcribe_$baseName")
         loadRecordings()
     }
 

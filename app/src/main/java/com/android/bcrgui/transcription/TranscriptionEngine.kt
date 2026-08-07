@@ -61,6 +61,7 @@ class RemoteTranscriptionEngine(
             }
 
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty response"))
+            Log.d(TAG, "RemoteTranscriptionEngine: response body=${responseBody.take(500)}")
             val resultJson = org.json.JSONObject(responseBody)
 
             val segmentsArray = resultJson.optJSONArray("segments") ?: org.json.JSONArray()
@@ -75,6 +76,7 @@ class RemoteTranscriptionEngine(
                     )
                 )
             }
+            Log.d(TAG, "RemoteTranscriptionEngine: parsed ${segments.size} segments")
 
             val transcription = AiTranscription(
                 text = resultJson.optString("text", ""),
@@ -84,6 +86,7 @@ class RemoteTranscriptionEngine(
                 durationMs = resultJson.optLong("duration_ms", 0L),
                 generatedAt = System.currentTimeMillis()
             )
+            Log.d(TAG, "RemoteTranscriptionEngine: returning success")
             Result.success(transcription)
         } catch (e: Exception) {
             Log.e(TAG, "RemoteTranscriptionEngine: error", e)

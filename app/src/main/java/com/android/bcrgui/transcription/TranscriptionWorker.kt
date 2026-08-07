@@ -61,16 +61,20 @@ class TranscriptionWorker(
             }
 
             val transcription = transcriptionResult.getOrNull()!!
+            Log.d(TAG, "Transcription success: text=${transcription.text.take(100)}..., segments=${transcription.segments.size}")
             setForegroundAsync(buildForegroundInfo("Saving transcript...", 60, "saving"))
 
             val transcriptRepo = TranscriptRepository(applicationContext)
-            transcriptRepo.saveTranscript(folderUriStr, baseName, transcription)
+            val transcriptSaved = transcriptRepo.saveTranscript(folderUriStr, baseName, transcription)
+            Log.d(TAG, "Transcript saved: $transcriptSaved")
 
             val metadataRepo = MetadataRepository(applicationContext)
             val metadata = generateMetadata(transcription)
-            metadataRepo.saveMetadata(folderUriStr, baseName, metadata)
+            val metadataSaved = metadataRepo.saveMetadata(folderUriStr, baseName, metadata)
+            Log.d(TAG, "Metadata saved: $metadataSaved")
 
             setForegroundAsync(buildForegroundInfo("Completed", 100, "completed"))
+            Log.d(TAG, "Transcription worker completed successfully")
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Transcription error", e)

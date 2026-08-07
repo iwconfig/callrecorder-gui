@@ -3,6 +3,7 @@ package com.android.bcrgui.transcription
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import com.android.bcrgui.model.AiTranscription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,6 +11,10 @@ import org.json.JSONObject
 import java.io.File
 
 class TranscriptRepository(private val context: Context) {
+
+    companion object {
+        private const val TAG = "TranscriptRepository"
+    }
 
     suspend fun getTranscript(folderUriStr: String, baseName: String): AiTranscription? = withContext(Dispatchers.IO) {
         val treeUri = Uri.parse(folderUriStr) ?: return@withContext null
@@ -85,12 +90,14 @@ class TranscriptRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
+                Log.d(TAG, "Saved transcript to $docUri")
                 true
             } else {
+                Log.w(TAG, "Failed to create document for transcript")
                 false
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error saving transcript", e)
             false
         }
     }
