@@ -527,6 +527,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             loadSelectedTranscript()
             loadSelectedMetadata()
             loadSelectedBookmarks()
+
+            if (_aiAutoTranscribe.value && recording.transcriptionStatus != "completed") {
+                android.util.Log.d("MainViewModel", "Auto-transcribing selected recording: ${recording.displayName}")
+                transcribeRecording(recording)
+            }
         } else {
             audioPlayer.stop()
             _selectedTranscript.value = null
