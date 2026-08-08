@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=python:3.14-slim
+ARG UV_EXTRAS=cpu
 
 FROM python:3.14-slim AS builder
 
@@ -13,11 +14,12 @@ WORKDIR /app
 
 COPY pyproject.toml .
 RUN pip install --no-cache-dir uv && \
-    uv sync --extra cpu --no-dev
+    uv sync --extra ${UV_EXTRAS} --no-dev
 
 COPY . .
 
 FROM ${BASE_IMAGE}
+ARG UV_EXTRAS
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
