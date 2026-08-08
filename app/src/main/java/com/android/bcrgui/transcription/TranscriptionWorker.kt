@@ -34,6 +34,7 @@ class TranscriptionWorker(
         val language = inputData.getString(KEY_LANGUAGE)
         val serverUrl = inputData.getString(KEY_SERVER_URL)
         val useRemote = inputData.getBoolean(KEY_USE_REMOTE, false)
+        val diarize = inputData.getBoolean(KEY_DIARIZE, false)
         val llmProvider = inputData.getString(KEY_LLM_PROVIDER) ?: "none"
 
         if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=$baseName, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
@@ -50,7 +51,7 @@ class TranscriptionWorker(
             }
 
             setForegroundAsync(buildForegroundInfo("Transcribing...", 25, "transcribing"))
-            val transcriptionResult = engine.transcribe(applicationContext, audioUri, modelName, language)
+            val transcriptionResult = engine.transcribe(applicationContext, audioUri, modelName, language, diarize)
 
             if (!transcriptionResult.isSuccess) {
                 val error = transcriptionResult.exceptionOrNull()
@@ -127,6 +128,7 @@ class TranscriptionWorker(
         const val KEY_AUDIO_URI = "audio_uri"
         const val KEY_MODEL_NAME = "model_name"
         const val KEY_LANGUAGE = "language"
+        const val KEY_DIARIZE = "diarize"
         const val KEY_SERVER_URL = "server_url"
         const val KEY_USE_REMOTE = "use_remote"
         const val KEY_LLM_PROVIDER = "llm_provider"

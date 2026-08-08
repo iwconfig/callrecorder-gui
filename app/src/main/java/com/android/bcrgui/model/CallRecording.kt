@@ -109,7 +109,8 @@ data class Bookmark(
 data class TranscriptionSegment(
     val startMs: Long,
     val endMs: Long,
-    val text: String
+    val text: String,
+    val speaker: String? = null
 )
 
 data class AiTranscription(

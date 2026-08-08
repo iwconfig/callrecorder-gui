@@ -68,6 +68,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _aiLlmProvider = MutableStateFlow(prefs.aiLlmProvider)
     val aiLlmProvider: StateFlow<String> = _aiLlmProvider
 
+    private val _aiDiarize = MutableStateFlow(prefs.aiDiarize)
+    val aiDiarize: StateFlow<Boolean> = _aiDiarize
+
     // UI States
     private val _rawRecordings = MutableStateFlow<List<CallRecording>>(emptyList())
     private val _isLoading = MutableStateFlow(false)
@@ -368,16 +371,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadRecordings()
     }
 
-    fun saveAiSettings(serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String) {
+    fun saveAiSettings(serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean) {
         prefs.aiServerUrl = serverUrl
         prefs.aiModel = model
         prefs.aiAutoTranscribe = autoTranscribe
         prefs.aiLlmProvider = llmProvider
+        prefs.aiDiarize = diarize
 
         _aiServerUrl.value = serverUrl
         _aiModel.value = model
         _aiAutoTranscribe.value = autoTranscribe
         _aiLlmProvider.value = llmProvider
+        _aiDiarize.value = diarize
     }
 
     fun transcribeRecording(recording: CallRecording) {
@@ -393,6 +398,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString(TranscriptionWorker.KEY_AUDIO_URI, recording.uri.toString())
             .putString(TranscriptionWorker.KEY_MODEL_NAME, _aiModel.value)
             .putString(TranscriptionWorker.KEY_LANGUAGE, "en")
+            .putBoolean(TranscriptionWorker.KEY_DIARIZE, _aiDiarize.value)
             .putString(TranscriptionWorker.KEY_SERVER_URL, _aiServerUrl.value)
             .putBoolean(TranscriptionWorker.KEY_USE_REMOTE, _aiServerUrl.value.isNotBlank())
             .putString(TranscriptionWorker.KEY_LLM_PROVIDER, _aiLlmProvider.value)
@@ -533,6 +539,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _aiModel.value = PreferencesManager.DEFAULT_AI_MODEL
         _aiAutoTranscribe.value = false
         _aiLlmProvider.value = PreferencesManager.DEFAULT_AI_LLM_PROVIDER
+        _aiDiarize.value = false
         _isOnboardingCompleted.value = false
         _rawRecordings.value = emptyList()
         _selectedRecording.value = null

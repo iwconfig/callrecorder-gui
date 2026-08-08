@@ -318,10 +318,37 @@ fun PlayerSheet(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 if (currentTranscript != null) {
-                                    Text(
-                                        text = currentTranscript.text,
-                                        fontSize = 12.sp
-                                    )
+                                    if (currentTranscript.segments.isNotEmpty()) {
+                                        Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            currentTranscript.segments.forEach { seg ->
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    seg.speaker?.let { speaker ->
+                                                        Surface(
+                                                            shape = RoundedCornerShape(4.dp),
+                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                            modifier = Modifier.padding(end = 8.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = speaker,
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Text(
+                                                        text = seg.text,
+                                                        fontSize = 12.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = currentTranscript.text,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 } else {
                                     Text(
                                         text = "No transcript available",

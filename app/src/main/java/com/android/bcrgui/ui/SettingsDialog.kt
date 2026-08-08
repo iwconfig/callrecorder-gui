@@ -46,7 +46,7 @@ fun SettingsDialog(
     currentAmoledMode: Boolean,
     onDismiss: () -> Unit,
     onSave: (folderUri: String?, template: String, extension: String, accentColor: String, amoledMode: Boolean) -> Unit,
-    onSaveAi: (serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String) -> Unit,
+    onSaveAi: (serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean) -> Unit,
     onResetOnboarding: () -> Unit
 ) {
     val context = LocalContext.current
@@ -65,6 +65,7 @@ fun SettingsDialog(
     var tempAiModel by remember { mutableStateOf(aiModel) }
     var tempAiAutoTranscribe by remember { mutableStateOf(aiAutoTranscribe) }
     var tempAiLlmProvider by remember { mutableStateOf(aiLlmProvider) }
+    var tempAiDiarize by remember { mutableStateOf(viewModel.aiDiarize.value) }
 
     var showResetConfirm by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
@@ -354,24 +355,75 @@ fun SettingsDialog(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            .clickable { tempAmoledMode = !tempAmoledMode }
+                            .clickable { tempAiAutoTranscribe = !tempAiAutoTranscribe }
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "AMOLED Theme",
+                                text = "Auto-transcribe new recordings",
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Pure black backgrounds in dark mode to save OLED battery.",
+                                text = "Automatically start transcription after selection",
                                 fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Switch(
+                            checked = tempAiAutoTranscribe,
+                            onCheckedChange = { tempAiAutoTranscribe = it },
+                            thumbContent = if (tempAiAutoTranscribe) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            } else null
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .clickable { tempAiDiarize = !tempAiDiarize }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Speaker diarization",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Identify and label different speakers (requires HF_TOKEN on server)",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = tempAiDiarize,
+                            onCheckedChange = { tempAiDiarize = it },
+                            thumbContent = if (tempAiDiarize) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                                    )
+                                }
+                            } else null
+                        )
+                    }
                         Switch(
                             checked = tempAmoledMode,
                             onCheckedChange = { tempAmoledMode = it },
@@ -545,7 +597,7 @@ fun SettingsDialog(
             Button(
                 onClick = {
                     onSave(tempFolderUri, tempTemplate, tempExtension, tempAccentColor, tempAmoledMode)
-                    onSaveAi(tempAiServerUrl, tempAiModel, tempAiAutoTranscribe, tempAiLlmProvider)
+                    onSaveAi(tempAiServerUrl, tempAiModel, tempAiAutoTranscribe, tempAiLlmProvider, tempAiDiarize)
                     onDismiss()
                 },
                 enabled = tempFolderUri != null && tempTemplate.isNotBlank()

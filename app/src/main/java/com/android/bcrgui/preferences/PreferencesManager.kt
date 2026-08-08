@@ -18,6 +18,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_AI_MODEL = "ai_model"
         private const val KEY_AI_AUTO_TRANSCRIBE = "ai_auto_transcribe"
         private const val KEY_AI_LLM_PROVIDER = "ai_llm_provider"
+    private const val KEY_AI_DIARIZE = "ai_diarize"
 
         const val DEFAULT_TEMPLATE = "{date}[_{direction}|][_sim{sim_slot}|][_{phone_number}|][_[{contact_name}|{caller_name}|{call_log_name}]|]"
         const val DEFAULT_EXTENSION = "all"
@@ -66,6 +67,10 @@ class PreferencesManager(context: Context) {
     var aiLlmProvider: String
         get() = prefs.getString(KEY_AI_LLM_PROVIDER, DEFAULT_AI_LLM_PROVIDER) ?: DEFAULT_AI_LLM_PROVIDER
         set(value) = prefs.edit().putString(KEY_AI_LLM_PROVIDER, value).apply()
+
+    var aiDiarize: Boolean
+        get() = prefs.getBoolean(KEY_AI_DIARIZE, false)
+        set(value) = prefs.edit().putBoolean(KEY_AI_DIARIZE, value).apply()
 
     fun clear() {
         prefs.edit().clear().apply()
