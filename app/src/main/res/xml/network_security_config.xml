@@ -5,9 +5,9 @@
     </domain-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
-        <domain>127.0.0.1</domain>
-        <domain>10.0.0.0/8</domain>
-        <domain>172.16.0.0/12</domain>
-        <domain>192.168.0.0/16</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.0.0/8</domain>
+        <domain includeSubdomains="false">172.16.0.0/12</domain>
+        <domain includeSubdomains="false">192.168.0.0/16</domain>
     </domain-config>
 </network-security-config>
