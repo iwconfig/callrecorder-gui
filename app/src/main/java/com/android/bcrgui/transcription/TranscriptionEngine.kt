@@ -2,7 +2,6 @@ package com.android.bcrgui.transcription
 
 import android.content.Context
 import android.util.Log
-import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.AiMetadata
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.TranscriptionSegment
@@ -40,11 +39,11 @@ class RemoteTranscriptionEngine(
         diarize: Boolean
     ): Result<AiTranscription> {
         return try {
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: url=${serverUrl.replace(Regex("\\d"), "X")}, model=$modelName, language=$language, diarize=$diarize")
+            Log.d(TAG, "RemoteTranscriptionEngine: url=${serverUrl.replace(Regex("\\d"), "X")}, model=$modelName, language=$language, diarize=$diarize")
             val stream = context.contentResolver.openInputStream(audioUri) ?: return Result.failure(Exception("Cannot open audio URI"))
             val bytes = stream.readBytes()
 
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}")
+            Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}")
 
             val audioPart = bytes.toRequestBody("application/octet-stream".toMediaType())
 
@@ -67,16 +66,16 @@ class RemoteTranscriptionEngine(
                 .post(multipartBody)
                 .build()
 
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url.toString().replace(Regex("\\d"), "X")}")
+            Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url.toString().replace(Regex("\\d"), "X")}")
             val response = httpClient.newCall(request).execute()
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
+            Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
 
             if (!response.isSuccessful) {
                 return Result.failure(Exception("Server error: ${response.code} ${response.message}"))
             }
 
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty response"))
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response body_len=${responseBody.length}")
+            Log.d(TAG, "RemoteTranscriptionEngine: response body_len=${responseBody.length}")
             val resultJson = org.json.JSONObject(responseBody)
 
             val segmentsArray = resultJson.optJSONArray("segments") ?: org.json.JSONArray()
@@ -93,7 +92,7 @@ class RemoteTranscriptionEngine(
                     )
                 )
             }
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: parsed ${segments.size} segments")
+            Log.d(TAG, "RemoteTranscriptionEngine: parsed ${segments.size} segments")
 
             val transcription = AiTranscription(
                 text = resultJson.optString("text", ""),
@@ -103,7 +102,7 @@ class RemoteTranscriptionEngine(
                 durationMs = resultJson.optLong("duration_ms", 0L),
                 generatedAt = System.currentTimeMillis()
             )
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: returning success")
+            Log.d(TAG, "RemoteTranscriptionEngine: returning success")
             Result.success(transcription)
         } catch (e: Exception) {
             Log.e(TAG, "RemoteTranscriptionEngine: error", e)
@@ -120,7 +119,7 @@ class RemoteTranscriptionEngine(
         llmProvider: String
     ): Result<AiMetadata> {
         return try {
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
+            Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
             val requestJson = org.json.JSONObject().apply {
                 put("text", transcriptionText)
                 put("language", language ?: "en")
@@ -136,7 +135,7 @@ class RemoteTranscriptionEngine(
                 return Result.failure(Exception("Metadata server error: ${response.code} ${response.message}"))
             }
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty metadata response"))
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: metadata response_len=${responseBody.length}")
+            Log.d(TAG, "RemoteTranscriptionEngine: metadata response_len=${responseBody.length}")
             val resultJson = org.json.JSONObject(responseBody)
             val tagsArray = resultJson.optJSONArray("tags") ?: org.json.JSONArray()
             val tags = mutableListOf<String>()
