@@ -1,0 +1,4 @@
+-r requirements.txt
+
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch>=2.3.0+cu121

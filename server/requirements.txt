@@ -2,11 +2,7 @@ fastapi==0.111.0
 uvicorn==0.30.0
 whisperx
 python-multipart==0.0.9
-# CPU-only torch:
 torch>=2.3.0
-# For NVIDIA GPU, replace with:
-#   --extra-index-url https://download.pytorch.org/whl/cu121
-#   torch>=2.3.0+cu121
 faster-whisper>=1.0.3
 ctranslate2>=4.4.0
 pyannote.audio>=3.1.1
