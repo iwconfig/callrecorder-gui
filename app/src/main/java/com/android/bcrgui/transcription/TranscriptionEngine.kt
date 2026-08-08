@@ -34,22 +34,37 @@ class RemoteTranscriptionEngine(
             val bytes = stream.readBytes()
             val base64Audio = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
 
-            Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}, base64 size=${base64Audio.length}")
+            Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}")
 
-            val json = org.json.JSONObject().apply {
-                put("model", modelName)
-                put("audio_base64", base64Audio)
-                if (!language.isNullOrBlank()) put("language", language)
-            }
-
-            val requestBody = okhttp3.RequestBody.create(
-                "application/json".toMediaType(),
-                json.toString()
+            val modelPart = okhttp3.RequestBody.create(
+                "text/plain".toMediaType(),
+                modelName
             )
+            val languagePart = if (!language.isNullOrBlank()) {
+                okhttp3.RequestBody.create(
+                    "text/plain".toMediaType(),
+                    language
+                )
+            } else null
+            val audioPart = okhttp3.RequestBody.create(
+                "application/octet-stream".toMediaType(),
+                bytes
+            )
+
+            val multipartBody = okhttp3.MultipartBody.Builder()
+                .setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("model", modelName)
+                .apply {
+                    if (!language.isNullOrBlank()) {
+                        addFormDataPart("language", language)
+                    }
+                    addFormDataPart("audio", "audio.ogg", audioPart)
+                }
+                .build()
 
             val request = okhttp3.Request.Builder()
                 .url("$serverUrl/v1/transcribe")
-                .post(requestBody)
+                .post(multipartBody)
                 .build()
 
             Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url}")

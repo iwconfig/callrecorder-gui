@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,12 +10,6 @@ import (
 	"strings"
 	"time"
 )
-
-type TranscribeRequest struct {
-	Model       string `json:"model"`
-	AudioBase64 string `json:"audio_base64"`
-	Language    string `json:"language,omitempty"`
-}
 
 type TranscribeResponse struct {
 	Text       string `json:"text"`
@@ -78,32 +71,36 @@ func transcribeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req TranscribeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB max memory
 		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if req.Model == "" {
-		req.Model = "default"
+	model := r.FormValue("model")
+	if model == "" {
+		model = "default"
 	}
-	if req.AudioBase64 == "" {
-		http.Error(w, "Missing audio_base64", http.StatusBadRequest)
-		return
-	}
+	language := r.FormValue("language")
 
-	audioData, err := base64.StdEncoding.DecodeString(req.AudioBase64)
+	file, _, err := r.FormFile("audio")
 	if err != nil {
-		http.Error(w, "Invalid base64 audio", http.StatusBadRequest)
+		http.Error(w, "Missing audio file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	audioData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Invalid audio file: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Transcribe request: model=%s, lang=%s, size=%d", req.Model, req.Language, len(audioData))
+	log.Printf("Transcribe request: model=%s, lang=%s, size=%d", model, language, len(audioData))
 
-	segments := generateMockSegments(req.Language)
+	segments := generateMockSegments(language)
 	response := TranscribeResponse{
 		Text:       strings.Join(extractTexts(segments), " "),
-		Language:   req.Language,
+		Language:   language,
 		DurationMs: int64(len(audioData) / 32000 * 1000),
 		Segments:   segments,
 	}
