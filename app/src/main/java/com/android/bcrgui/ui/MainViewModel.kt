@@ -406,6 +406,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         android.util.Log.d("MainViewModel", "Enqueued transcription work: transcribe_$baseName")
         loadRecordings()
+
+        // Reload transcript/metadata after the worker finishes
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3000)
+            _selectedRecording.value?.let { rec ->
+                android.util.Log.d("MainViewModel", "Delayed reload of transcript/metadata for ${rec.displayName}")
+                loadSelectedTranscript()
+                loadSelectedMetadata()
+            }
+        }
     }
 
     fun loadSelectedTranscript() {
