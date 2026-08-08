@@ -37,7 +37,7 @@ class TranscriptionWorker(
         val diarize = inputData.getBoolean(KEY_DIARIZE, false)
         val llmProvider = inputData.getString(KEY_LLM_PROVIDER) ?: "none"
 
-        if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=$baseName, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
+        if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=${redact(baseName)}, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
 
         try {
             setForegroundAsync(buildForegroundInfo("Starting transcription...", 0, "starting"))
@@ -61,7 +61,7 @@ class TranscriptionWorker(
             }
 
             val transcription = transcriptionResult.getOrNull()!!
-            if (BuildConfig.DEBUG) Log.d(TAG, "Transcription success: text=${transcription.text.take(100)}..., segments=${transcription.segments.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Transcription success: text_length=${transcription.text.length}, segments=${transcription.segments.size}")
             setForegroundAsync(buildForegroundInfo("Saving transcript...", 60, "saving"))
             val transcriptRepo = TranscriptRepository(applicationContext)
             val transcriptSaved = transcriptRepo.saveTranscript(folderUriStr, baseName, transcription)
@@ -132,5 +132,7 @@ class TranscriptionWorker(
         const val KEY_SERVER_URL = "server_url"
         const val KEY_USE_REMOTE = "use_remote"
         const val KEY_LLM_PROVIDER = "llm_provider"
+
+        private fun redact(name: String): String = name.replace(Regex("\\d"), "X")
     }
 }

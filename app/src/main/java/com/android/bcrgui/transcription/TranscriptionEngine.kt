@@ -76,7 +76,7 @@ class RemoteTranscriptionEngine(
             }
 
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty response"))
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response body=${responseBody.take(500)}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response body_len=${responseBody.length}")
             val resultJson = org.json.JSONObject(responseBody)
 
             val segmentsArray = resultJson.optJSONArray("segments") ?: org.json.JSONArray()
@@ -136,7 +136,7 @@ class RemoteTranscriptionEngine(
                 return Result.failure(Exception("Metadata server error: ${response.code} ${response.message}"))
             }
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty metadata response"))
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: metadata response=${responseBody.take(500)}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: metadata response_len=${responseBody.length}")
             val resultJson = org.json.JSONObject(responseBody)
             val tagsArray = resultJson.optJSONArray("tags") ?: org.json.JSONArray()
             val tags = mutableListOf<String>()

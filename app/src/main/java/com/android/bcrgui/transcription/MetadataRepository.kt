@@ -86,7 +86,7 @@ class MetadataRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
-                if (BuildConfig.DEBUG) Log.d(TAG, "Saved metadata to $docUri")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Saved metadata to ${docUri.toString().replace(Regex("\\d"), "X")}")
                 true
             } else {
                 Log.w(TAG, "Failed to create document for metadata")

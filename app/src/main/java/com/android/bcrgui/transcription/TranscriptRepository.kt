@@ -93,7 +93,7 @@ class TranscriptRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
-                if (BuildConfig.DEBUG) Log.d(TAG, "Saved transcript to $docUri")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Saved transcript to ${docUri.toString().replace(Regex("\\d"), "X")}")
                 true
             } else {
                 Log.w(TAG, "Failed to create document for transcript")

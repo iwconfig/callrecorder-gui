@@ -57,7 +57,7 @@ fun PlayerSheet(
     val transcript by viewModel.selectedTranscript.collectAsState()
     val metadata by viewModel.selectedMetadata.collectAsState()
 
-    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "State: recording=${recording?.displayName}, transcript=${transcript?.text?.take(50)}, metadata=${metadata?.summary?.take(50)}")
+    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "State: recording=${recording?.displayName?.replace(Regex("\\d"), "X")}, transcript_len=${transcript?.text?.length}, metadata_len=${metadata?.summary?.length}")
 
     var isExpanded by remember { mutableStateOf(false) }
     var showTranscript by remember { mutableStateOf(false) }
@@ -292,7 +292,7 @@ fun PlayerSheet(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         IconButton(onClick = {
-                            if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript=${transcript?.text?.take(50)}")
+                            if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript_len=${transcript?.text?.length}")
                             showTranscript = !showTranscript
                         }) {
                             Icon(
@@ -305,7 +305,7 @@ fun PlayerSheet(
 
                     if (showTranscript) {
                         val currentTranscript = transcript
-                        if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: currentTranscript=${currentTranscript?.text?.take(50)}")
+                        if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: transcript_len=${currentTranscript?.text?.length}, segments=${currentTranscript?.segments?.size}")
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
@@ -361,7 +361,7 @@ fun PlayerSheet(
                     }
 
                     val currentMetadata = metadata
-                    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering metadata card: currentMetadata=${currentMetadata?.summary?.take(50)}")
+                    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering metadata card: summary_len=${currentMetadata?.summary?.length}, tags=${currentMetadata?.tags?.size}")
                     if (currentMetadata != null && currentMetadata.summary != null) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
