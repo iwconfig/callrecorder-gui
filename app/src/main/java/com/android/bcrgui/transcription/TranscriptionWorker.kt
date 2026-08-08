@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.AiTranscription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,16 +46,16 @@ class TranscriptionWorker(
         val diarize = inputData.getBoolean(KEY_DIARIZE, false)
         val llmProvider = inputData.getString(KEY_LLM_PROVIDER) ?: "none"
 
-        Log.d(TAG, "doWork: baseName=${redact(baseName)}, useRemote=$useRemote, serverUrl=${serverUrl.replace(Regex("\\d"), "X")}, audioUri=${audioUri.toString().replace(Regex("\\d"), "X")}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=${redact(baseName)}, useRemote=$useRemote, serverUrl=${serverUrl?.replace(Regex("\\d"), "X") ?: "null"}, audioUri=${audioUri.toString().replace(Regex("\\d"), "X")}")
 
         try {
             setForegroundAsync(buildForegroundInfo("Starting transcription...", 0, "starting"))
 
             val engine: TranscriptionEngine = if (useRemote && !serverUrl.isNullOrBlank()) {
-                Log.d(TAG, "Using RemoteTranscriptionEngine")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Using RemoteTranscriptionEngine")
                 RemoteTranscriptionEngine(serverUrl, okhttp3.OkHttpClient.Builder().build())
             } else {
-                Log.d(TAG, "Using OnDeviceTranscriptionEngine")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Using OnDeviceTranscriptionEngine")
                 OnDeviceTranscriptionEngine()
             }
 
@@ -69,11 +70,11 @@ class TranscriptionWorker(
             }
 
             val transcription = transcriptionResult.getOrNull()!!
-            Log.d(TAG, "Transcription success: text_length=${transcription.text.length}, segments=${transcription.segments.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Transcription success: text_length=${transcription.text.length}, segments=${transcription.segments.size}")
             setForegroundAsync(buildForegroundInfo("Saving transcript...", 60, "saving"))
             val transcriptRepo = TranscriptRepository(applicationContext)
             val transcriptSaved = transcriptRepo.saveTranscript(folderUriStr, baseName, transcription)
-            Log.d(TAG, "Transcript saved: $transcriptSaved")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Transcript saved: $transcriptSaved")
 
             setForegroundAsync(buildForegroundInfo("Generating metadata...", 75, "generating_metadata"))
             val metadataResult = engine.generateMetadata(transcription.text, transcription.language, llmProvider)
@@ -81,14 +82,14 @@ class TranscriptionWorker(
             if (metadata != null) {
                 val metadataRepo = MetadataRepository(applicationContext)
                 val metadataSaved = metadataRepo.saveMetadata(folderUriStr, baseName, metadata)
-                Log.d(TAG, "Metadata saved: $metadataSaved")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Metadata saved: $metadataSaved")
             } else {
                 val metadataError = metadataResult.exceptionOrNull()
                 Log.w(TAG, "Metadata generation failed, transcript already saved", metadataError)
             }
 
             setForegroundAsync(buildForegroundInfo("Completed", 100, "completed"))
-            Log.d(TAG, "Transcription worker completed successfully")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Transcription worker completed successfully")
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Transcription error", e)
