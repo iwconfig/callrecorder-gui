@@ -29,6 +29,18 @@ if not hasattr(torchaudio, "list_audio_backends"):
         _backends = []
     torchaudio.list_audio_backends = lambda: _backends
 
+# TorchAudio 2.9+ also removed torchaudio.AudioMetaData, but
+# pyannote.audio 3.x still imports it. Provide a minimal shim.
+if not hasattr(torchaudio, "AudioMetaData"):
+    class AudioMetaData:
+        def __init__(self, sample_rate, num_frames, num_channels, bits_per_sample, encoding):
+            self.sample_rate = sample_rate
+            self.num_frames = num_frames
+            self.num_channels = num_channels
+            self.bits_per_sample = bits_per_sample
+            self.encoding = encoding
+    torchaudio.AudioMetaData = AudioMetaData
+
 import whisperx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
