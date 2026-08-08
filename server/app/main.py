@@ -18,10 +18,16 @@ import torch
 import torchaudio
 
 # TorchAudio 2.9+ removed torchaudio.list_audio_backends(), but
-# pyannote.audio (up to at least 3.4.0) still calls it during import.
-# Provide a no-op fallback so imports succeed without downgrading torchaudio.
+# pyannote.audio (up to at least 3.4.0) still calls it during import
+# and expects at least one backend (preferring "soundfile").
+# Provide a fallback that returns the available backends.
 if not hasattr(torchaudio, "list_audio_backends"):
-    torchaudio.list_audio_backends = lambda: []
+    try:
+        import soundfile  # noqa: F401
+        _backends = ["soundfile"]
+    except ImportError:
+        _backends = []
+    torchaudio.list_audio_backends = lambda: _backends
 
 import whisperx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
