@@ -4,6 +4,7 @@ import json
 import hashlib
 import logging
 import traceback
+import functools
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,23 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ["TORCH_CUDA_ARCH_LIST"] = ""
 
 import torch
+
+# ---------------------------------------------------------
+# PyTorch 2.6+ Compatibility Patch for WhisperX / Pyannote
+# Pyannote checkpoints contain pickled omegaconf/lightning objects
+# that fail under PyTorch's new strict weights_only=True default.
+# ---------------------------------------------------------
+_original_load = torch.load
+
+@functools.wraps(_original_load)
+def _patched_load(*args, **kwargs):
+    # Unconditionally overwrite lightning_fabric's request for weights_only=True
+    kwargs["weights_only"] = False
+    return _original_load(*args, **kwargs)
+
+torch.load = _patched_load
+# ---------------------------------------------------------
+
 import torchaudio
 
 # TorchAudio 2.9+ removed torchaudio.list_audio_backends(), but
@@ -49,7 +67,8 @@ app = FastAPI(title="WhisperX Transcription Server")
 
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 DEVICE = os.getenv("DEVICE", "cpu")
-COMPUTE_TYPE = os.getenv("COMPUTE_TYPE", "int8")
+# COMPUTE_TYPE = os.getenv("COMPUTE_TYPE", "int8")
+COMPUTE_TYPE = os.getenv("COMPUTE_TYPE", "int8_float32")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
 LLM_URL = os.getenv("LLM_URL", "")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
@@ -71,14 +90,12 @@ def get_model():
                 download_root=str(CACHE_DIR),
             )
             logger.info("WhisperX model loaded successfully")
-        except Exception as e:
-            logger.error("Failed to load WhisperX model", exc_info=True)
+        # Catch BaseException (including SystemExit) to prevent process shutdown
+        except BaseException as e:
+            logger.error("Failed to load WhisperX model (caught %s)", type(e).__name__, exc_info=True)
             raise RuntimeError(
-                f"Failed to load transcription model: {type(e).__name__}: {e}. "
-                "This may indicate incompatible package versions. "
-                "Please ensure CPU-only PyTorch and compatible torchaudio/pyannote.audio are installed "
-                "(e.g., reinstall with: uv sync --extra cpu)."
-            ) from e
+                f"Failed to load transcription model: {type(e).__name__}: {e}."
+            ) from None
     return _model
 
 
@@ -117,6 +134,11 @@ async def transcribe(
     lang = language or "auto"
 
     content = await file.read()
+    
+    # 1. Reject 0-byte files
+    if not content or len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty (0 bytes)")
+
     size_mb = len(content) / (1024 * 1024)
     if size_mb > MAX_UPLOAD_SIZE_MB:
         raise HTTPException(status_code=413, detail=f"Upload size {size_mb:.1f}MB exceeds limit of {MAX_UPLOAD_SIZE_MB}MB")
@@ -125,16 +147,44 @@ async def transcribe(
     with open(tmp_path, "wb") as f:
         f.write(content)
 
+    # 2. Validate audio header to prevent C++ divide-by-zero (SIGFPE / 136)
+    tmp_path = f"/tmp/{hashlib.sha256(content).hexdigest()}.audio"
+    with open(tmp_path, "wb") as f:
+        f.write(content)
+
+    # Validate audio using WhisperX's FFmpeg loader (handles OGG, Opus, M4A, MP3, WAV, etc.)
+    try:
+        audio_data = whisperx.load_audio(tmp_path)
+        if len(audio_data) == 0:
+            raise ValueError("Audio stream contains 0 samples")
+    except Exception as e:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid, unsupported, or corrupted audio file: {e}"
+        )
+
     try:
         start = time.time()
         try:
             whisper_model = get_model()
-        except RuntimeError as e:
+        except BaseException as e:
             logger.error("Model loading failed: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
         
-        logger.info("Starting transcription for file size=%dMB lang=%s", size_mb, lang)
-        result = whisper_model.transcribe(tmp_path, language=lang if lang != "auto" else None)
+        logger.info("Starting transcription for file size=%.2fMB lang=%s", size_mb, lang)
+        
+        try:
+            # Explicitly set batch_size=4 (or 1 for low RAM) instead of default 16
+            result = whisper_model.transcribe(
+                tmp_path, 
+                batch_size=1, 
+                language=lang if lang != "auto" else None
+            )
+        except BaseException as e:
+            logger.error("WhisperX transcribe failed", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+
         logger.info("Transcription completed: %d segments", len(result.get("segments", [])))
 
         segments = []

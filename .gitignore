@@ -39,3 +39,5 @@ keystore.properties
 
 # Keystore file (should be provided via CI secret or local only)
 app/bcrgui-key.jks
+
+__pycache__
