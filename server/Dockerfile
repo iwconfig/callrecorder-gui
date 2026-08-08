@@ -1,3 +1,4 @@
+ARG BASE_IMAGE=python:3.12-slim
 ARG PYTORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 FROM python:3.12-slim AS builder
@@ -18,7 +19,6 @@ RUN sed -i "s|https://download.pytorch.org/whl/cpu|${PYTORCH_INDEX}|" pyproject.
 
 COPY . .
 
-ARG BASE_IMAGE=python:3.12-slim
 FROM ${BASE_IMAGE}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
