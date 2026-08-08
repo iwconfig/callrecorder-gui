@@ -2,6 +2,7 @@ package com.android.bcrgui.transcription
 
 import android.content.Context
 import android.util.Log
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.AiMetadata
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.TranscriptionSegment
@@ -36,27 +37,18 @@ class RemoteTranscriptionEngine(
         language: String?
     ): Result<AiTranscription> {
         return try {
-            Log.d(TAG, "RemoteTranscriptionEngine: url=$serverUrl, model=$modelName, language=$language")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: url=$serverUrl, model=$modelName, language=$language")
             val stream = context.contentResolver.openInputStream(audioUri) ?: return Result.failure(Exception("Cannot open audio URI"))
             val bytes = stream.readBytes()
             val base64Audio = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
 
-            Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: audio size=${bytes.size}")
 
-            val modelPart = okhttp3.RequestBody.create(
-                "text/plain".toMediaType(),
-                modelName
-            )
+            val modelPart = modelName.toRequestBody("text/plain".toMediaType())
             val languagePart = if (!language.isNullOrBlank()) {
-                okhttp3.RequestBody.create(
-                    "text/plain".toMediaType(),
-                    language
-                )
+                language.toRequestBody("text/plain".toMediaType())
             } else null
-            val audioPart = okhttp3.RequestBody.create(
-                "application/octet-stream".toMediaType(),
-                bytes
-            )
+            val audioPart = bytes.toRequestBody("application/octet-stream".toMediaType())
 
             val multipartBody = okhttp3.MultipartBody.Builder()
                 .setType(okhttp3.MultipartBody.FORM)
@@ -74,16 +66,16 @@ class RemoteTranscriptionEngine(
                 .post(multipartBody)
                 .build()
 
-            Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url}")
             val response = httpClient.newCall(request).execute()
-            Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
 
             if (!response.isSuccessful) {
                 return Result.failure(Exception("Server error: ${response.code} ${response.message}"))
             }
 
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty response"))
-            Log.d(TAG, "RemoteTranscriptionEngine: response body=${responseBody.take(500)}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response body=${responseBody.take(500)}")
             val resultJson = org.json.JSONObject(responseBody)
 
             val segmentsArray = resultJson.optJSONArray("segments") ?: org.json.JSONArray()
@@ -98,7 +90,7 @@ class RemoteTranscriptionEngine(
                     )
                 )
             }
-            Log.d(TAG, "RemoteTranscriptionEngine: parsed ${segments.size} segments")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: parsed ${segments.size} segments")
 
             val transcription = AiTranscription(
                 text = resultJson.optString("text", ""),
@@ -108,7 +100,7 @@ class RemoteTranscriptionEngine(
                 durationMs = resultJson.optLong("duration_ms", 0L),
                 generatedAt = System.currentTimeMillis()
             )
-            Log.d(TAG, "RemoteTranscriptionEngine: returning success")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: returning success")
             Result.success(transcription)
         } catch (e: Exception) {
             Log.e(TAG, "RemoteTranscriptionEngine: error", e)
@@ -125,16 +117,13 @@ class RemoteTranscriptionEngine(
         llmProvider: String
     ): Result<AiMetadata> {
         return try {
-            Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
             val requestJson = org.json.JSONObject().apply {
                 put("text", transcriptionText)
                 put("language", language ?: "en")
                 put("llm_provider", llmProvider)
             }
-            val requestBody = okhttp3.RequestBody.create(
-                "application/json".toMediaType(),
-                requestJson.toString()
-            )
+            val requestBody = requestJson.toString().toRequestBody("application/json".toMediaType())
             val request = okhttp3.Request.Builder()
                 .url("$serverUrl/v1/metadata")
                 .post(requestBody)
@@ -144,7 +133,7 @@ class RemoteTranscriptionEngine(
                 return Result.failure(Exception("Metadata server error: ${response.code} ${response.message}"))
             }
             val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty metadata response"))
-            Log.d(TAG, "RemoteTranscriptionEngine: metadata response=${responseBody.take(500)}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: metadata response=${responseBody.take(500)}")
             val resultJson = org.json.JSONObject(responseBody)
             val tagsArray = resultJson.optJSONArray("tags") ?: org.json.JSONArray()
             val tags = mutableListOf<String>()

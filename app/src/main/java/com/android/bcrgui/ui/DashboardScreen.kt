@@ -11,7 +11,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallMade
+import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -987,8 +1007,8 @@ fun RecordingItem(
                 else -> Color(0xFFFF9800) // Orange (Conference/other)
             }
             val directionIcon = when (recording.direction?.lowercase()) {
-                "in" -> Icons.Default.CallReceived
-                "out" -> Icons.Default.CallMade
+                "in" -> Icons.Filled.CallReceived
+                "out" -> Icons.Filled.CallMade
                 else -> Icons.Default.Call
             }
 
@@ -1017,7 +1037,7 @@ fun RecordingItem(
                         )
                     } else if (isPlaying) {
                         Icon(
-                            imageVector = Icons.Default.VolumeUp,
+                            imageVector = Icons.Filled.VolumeUp,
                             contentDescription = "Playing",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)

@@ -12,7 +12,8 @@ import kotlinx.coroutines.withContext
 class BookmarkRepository(private val context: Context) {
 
     suspend fun getBookmarks(folderUriStr: String, baseName: String): List<Bookmark> = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext emptyList()
+        if (folderUriStr.isEmpty()) return@withContext emptyList()
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.bookmarks.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
@@ -46,7 +47,8 @@ class BookmarkRepository(private val context: Context) {
     }
 
     suspend fun saveBookmarks(folderUriStr: String, baseName: String, bookmarks: List<Bookmark>): Boolean = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext false
+        if (folderUriStr.isEmpty()) return@withContext false
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.bookmarks.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val parentDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
@@ -92,7 +94,8 @@ class BookmarkRepository(private val context: Context) {
     }
 
     suspend fun deleteBookmarks(folderUriStr: String, baseName: String): Boolean = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext false
+        if (folderUriStr.isEmpty()) return@withContext true
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.bookmarks.json"
         val docId = findDocumentId(folderUriStr, jsonName) ?: return@withContext true
 
@@ -106,7 +109,8 @@ class BookmarkRepository(private val context: Context) {
     }
 
     private fun findDocumentId(folderUriStr: String, targetName: String): String? {
-        val treeUri = Uri.parse(folderUriStr) ?: return null
+        if (folderUriStr.isEmpty()) return null
+        val treeUri = Uri.parse(folderUriStr)
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         val projection = arrayOf(

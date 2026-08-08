@@ -10,9 +10,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallMade
+import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.Bookmark
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.AiMetadata
@@ -44,7 +57,7 @@ fun PlayerSheet(
     val transcript by viewModel.selectedTranscript.collectAsState()
     val metadata by viewModel.selectedMetadata.collectAsState()
 
-    android.util.Log.d("PlayerSheet", "State: recording=${recording?.displayName}, transcript=${transcript?.text?.take(50)}, metadata=${metadata?.summary?.take(50)}")
+    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "State: recording=${recording?.displayName}, transcript=${transcript?.text?.take(50)}, metadata=${metadata?.summary?.take(50)}")
 
     var isExpanded by remember { mutableStateOf(false) }
     var showTranscript by remember { mutableStateOf(false) }
@@ -127,8 +140,8 @@ fun PlayerSheet(
                     ) {
                         Icon(
                             imageVector = when (rec.direction?.lowercase()) {
-                                "in" -> Icons.Default.CallReceived
-                                "out" -> Icons.Default.CallMade
+                                "in" -> Icons.Filled.CallReceived
+                                "out" -> Icons.Filled.CallMade
                                 else -> Icons.Default.Call
                             },
                             contentDescription = null,
@@ -279,7 +292,7 @@ fun PlayerSheet(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         IconButton(onClick = {
-                            android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript=${transcript?.text?.take(50)}")
+                            if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript=${transcript?.text?.take(50)}")
                             showTranscript = !showTranscript
                         }) {
                             Icon(
@@ -292,7 +305,7 @@ fun PlayerSheet(
 
                     if (showTranscript) {
                         val currentTranscript = transcript
-                        android.util.Log.d("PlayerSheet", "Rendering transcript card: currentTranscript=${currentTranscript?.text?.take(50)}")
+                        if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: currentTranscript=${currentTranscript?.text?.take(50)}")
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
@@ -321,7 +334,7 @@ fun PlayerSheet(
                     }
 
                     val currentMetadata = metadata
-                    android.util.Log.d("PlayerSheet", "Rendering metadata card: currentMetadata=${currentMetadata?.summary?.take(50)}")
+                    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering metadata card: currentMetadata=${currentMetadata?.summary?.take(50)}")
                     if (currentMetadata != null && currentMetadata.summary != null) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -335,7 +348,7 @@ fun PlayerSheet(
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
                                 Text(
-                                    text = currentMetadata.summary ?: "",
+                                    text = currentMetadata.summary,
                                     fontSize = 12.sp
                                 )
                                 if (!currentMetadata.tags.isNullOrEmpty()) {
@@ -405,8 +418,8 @@ fun PlayerSheet(
                         ) {
                             Icon(
                                 imageVector = when (rec.direction?.lowercase()) {
-                                    "in" -> Icons.Default.CallReceived
-                                    "out" -> Icons.Default.CallMade
+                                    "in" -> Icons.Filled.CallReceived
+                                    "out" -> Icons.Filled.CallMade
                                     else -> Icons.Default.Call
                                 },
                                 contentDescription = null,

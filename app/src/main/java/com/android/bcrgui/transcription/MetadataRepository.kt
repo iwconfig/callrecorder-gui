@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.AiMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,8 @@ class MetadataRepository(private val context: Context) {
     }
 
     suspend fun getMetadata(folderUriStr: String, baseName: String): AiMetadata? = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext null
+        if (folderUriStr.isEmpty()) return@withContext null
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.metadata.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
@@ -49,7 +51,8 @@ class MetadataRepository(private val context: Context) {
     }
 
     suspend fun saveMetadata(folderUriStr: String, baseName: String, metadata: AiMetadata): Boolean = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext false
+        if (folderUriStr.isEmpty()) return@withContext false
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.metadata.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val parentDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
@@ -83,7 +86,7 @@ class MetadataRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
-                Log.d(TAG, "Saved metadata to $docUri")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Saved metadata to $docUri")
                 true
             } else {
                 Log.w(TAG, "Failed to create document for metadata")
@@ -96,7 +99,8 @@ class MetadataRepository(private val context: Context) {
     }
 
     private fun findDocumentId(folderUriStr: String, targetName: String): String? {
-        val treeUri = Uri.parse(folderUriStr) ?: return null
+        if (folderUriStr.isEmpty()) return null
+        val treeUri = Uri.parse(folderUriStr)
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         val projection = arrayOf(

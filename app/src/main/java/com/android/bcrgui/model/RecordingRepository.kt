@@ -23,8 +23,9 @@ class RecordingRepository(private val context: Context) {
         template: String,
         extension: String
     ): List<CallRecording> = withContext(Dispatchers.IO) {
+        if (folderUriStr.isEmpty()) return@withContext emptyList()
+        val treeUri = Uri.parse(folderUriStr)
         val recordings = mutableListOf<CallRecording>()
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext emptyList()
 
         val childrenUri = try {
             val documentId = DocumentsContract.getTreeDocumentId(treeUri)
@@ -333,7 +334,8 @@ class RecordingRepository(private val context: Context) {
             val srcFile = File(recycleBinDir, fileName)
             if (!srcFile.exists()) return@withContext false
 
-            val treeUri = Uri.parse(folderUriStr) ?: return@withContext false
+            if (folderUriStr.isEmpty()) return@withContext false
+            val treeUri = Uri.parse(folderUriStr)
             val documentId = DocumentsContract.getTreeDocumentId(treeUri)
             val parentDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
 

@@ -102,6 +102,7 @@ class BcrPlaybackService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun buildNotification(
         title: String,
         artist: String,

@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.CallRecording
 import com.android.bcrgui.model.RecordingRepository
 import com.android.bcrgui.parser.BcrTemplateParser
@@ -384,7 +385,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
-        android.util.Log.d("MainViewModel", "transcribeRecording: baseName=$baseName, serverUrl=${_aiServerUrl.value}, useRemote=${_aiServerUrl.value.isNotBlank()}")
+        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "transcribeRecording: baseName=$baseName, serverUrl=${_aiServerUrl.value}, useRemote=${_aiServerUrl.value.isNotBlank()}")
 
         val inputData = androidx.work.Data.Builder()
             .putString(TranscriptionWorker.KEY_FOLDER_URI, folder)
@@ -407,7 +408,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             request
         )
 
-        android.util.Log.d("MainViewModel", "Enqueued transcription work: transcribe_$baseName")
+        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "Enqueued transcription work: transcribe_$baseName")
         loadRecordings()
 
         viewModelScope.launch {
@@ -416,7 +417,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (workInfo != null) {
                     when (workInfo.state) {
                         WorkInfo.State.SUCCEEDED -> {
-                            android.util.Log.d("MainViewModel", "Work succeeded, reloading transcript/metadata for $baseName")
+                            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "Work succeeded, reloading transcript/metadata for $baseName")
                             loadSelectedTranscript()
                             loadSelectedMetadata()
                         }
@@ -439,10 +440,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
-        android.util.Log.d("MainViewModel", "loadSelectedTranscript: baseName=$baseName, folder=$folder")
+        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedTranscript: baseName=$baseName, folder=$folder")
         viewModelScope.launch {
             val transcript = transcriptRepository.getTranscript(folder, baseName)
-            android.util.Log.d("MainViewModel", "loadSelectedTranscript result: ${transcript?.text?.take(100)}")
+            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedTranscript result: ${transcript?.text?.take(100)}")
             _selectedTranscript.value = transcript
         }
     }
@@ -453,10 +454,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
-        android.util.Log.d("MainViewModel", "loadSelectedMetadata: baseName=$baseName, folder=$folder")
+        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedMetadata: baseName=$baseName, folder=$folder")
         viewModelScope.launch {
             val metadata = metadataRepository.getMetadata(folder, baseName)
-            android.util.Log.d("MainViewModel", "loadSelectedMetadata result: summary=${metadata?.summary?.take(100)}")
+            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedMetadata result: summary=${metadata?.summary?.take(100)}")
             _selectedMetadata.value = metadata
         }
     }
@@ -554,7 +555,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             loadSelectedBookmarks()
 
             if (_aiAutoTranscribe.value && recording.transcriptionStatus != "completed") {
-                android.util.Log.d("MainViewModel", "Auto-transcribing selected recording: ${recording.displayName}")
+                if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "Auto-transcribing selected recording: ${recording.displayName}")
                 transcribeRecording(recording)
             }
         } else {

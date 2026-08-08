@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
+import com.android.bcrgui.BuildConfig
 import com.android.bcrgui.model.AiTranscription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,8 @@ class TranscriptRepository(private val context: Context) {
     }
 
     suspend fun getTranscript(folderUriStr: String, baseName: String): AiTranscription? = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext null
+        if (folderUriStr.isEmpty()) return@withContext null
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.transcript.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
@@ -49,7 +51,8 @@ class TranscriptRepository(private val context: Context) {
     }
 
     suspend fun saveTranscript(folderUriStr: String, baseName: String, transcription: AiTranscription): Boolean = withContext(Dispatchers.IO) {
-        val treeUri = Uri.parse(folderUriStr) ?: return@withContext false
+        if (folderUriStr.isEmpty()) return@withContext false
+        val treeUri = Uri.parse(folderUriStr)
         val jsonName = "$baseName.transcript.json"
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val parentDocumentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
@@ -90,7 +93,7 @@ class TranscriptRepository(private val context: Context) {
                 context.contentResolver.openOutputStream(docUri)?.use { output ->
                     output.write(jsonText.toByteArray(Charsets.UTF_8))
                 }
-                Log.d(TAG, "Saved transcript to $docUri")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Saved transcript to $docUri")
                 true
             } else {
                 Log.w(TAG, "Failed to create document for transcript")
@@ -103,7 +106,8 @@ class TranscriptRepository(private val context: Context) {
     }
 
     private fun findDocumentId(folderUriStr: String, targetName: String): String? {
-        val treeUri = Uri.parse(folderUriStr) ?: return null
+        if (folderUriStr.isEmpty()) return null
+        val treeUri = Uri.parse(folderUriStr)
         val documentId = DocumentsContract.getTreeDocumentId(treeUri)
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         val projection = arrayOf(
