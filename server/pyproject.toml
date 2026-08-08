@@ -16,17 +16,9 @@ cpu = ["torch>=2.3.0"]
 cu121 = ["torch>=2.3.0"]
 
 [tool.uv.sources]
-torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu121", extra = "cu121" },
-]
+torch = { index = "pytorch-cpu" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[[tool.uv.index]]
-name = "pytorch-cu121"
-url = "https://download.pytorch.org/whl/cu121"
 explicit = true

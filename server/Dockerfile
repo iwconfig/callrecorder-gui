@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=python:3.12-slim
-ARG UV_EXTRA=cpu
+ARG PYTORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 FROM ${BASE_IMAGE}
 
@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir uv && \
-    uv sync --extra ${UV_EXTRA} --frozen --no-dev
+RUN sed -i "s|https://download.pytorch.org/whl/cpu|${PYTORCH_INDEX}|" pyproject.toml && \
+    pip install --no-cache-dir uv && \
+    uv sync --extra cpu --frozen --no-dev
 
 COPY . .
 
