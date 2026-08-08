@@ -17,6 +17,12 @@ os.environ["TORCH_CUDA_ARCH_LIST"] = ""
 import torch
 import torchaudio
 
+# TorchAudio 2.9+ removed torchaudio.list_audio_backends(), but
+# pyannote.audio (up to at least 3.4.0) still calls it during import.
+# Provide a no-op fallback so imports succeed without downgrading torchaudio.
+if not hasattr(torchaudio, "list_audio_backends"):
+    torchaudio.list_audio_backends = lambda: []
+
 import whisperx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
