@@ -4,15 +4,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
-import com.android.bcrgui.model.AiMetadata
 import com.android.bcrgui.model.AiTranscription
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,6 +33,7 @@ class TranscriptionWorker(
         val language = inputData.getString(KEY_LANGUAGE)
         val serverUrl = inputData.getString(KEY_SERVER_URL)
         val useRemote = inputData.getBoolean(KEY_USE_REMOTE, false)
+        val llmProvider = inputData.getString(KEY_LLM_PROVIDER) ?: "none"
 
         Log.d(TAG, "doWork: baseName=$baseName, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
 
@@ -63,15 +61,21 @@ class TranscriptionWorker(
             val transcription = transcriptionResult.getOrNull()!!
             Log.d(TAG, "Transcription success: text=${transcription.text.take(100)}..., segments=${transcription.segments.size}")
             setForegroundAsync(buildForegroundInfo("Saving transcript...", 60, "saving"))
-
             val transcriptRepo = TranscriptRepository(applicationContext)
             val transcriptSaved = transcriptRepo.saveTranscript(folderUriStr, baseName, transcription)
             Log.d(TAG, "Transcript saved: $transcriptSaved")
 
-            val metadataRepo = MetadataRepository(applicationContext)
-            val metadata = generateMetadata(transcription)
-            val metadataSaved = metadataRepo.saveMetadata(folderUriStr, baseName, metadata)
-            Log.d(TAG, "Metadata saved: $metadataSaved")
+            setForegroundAsync(buildForegroundInfo("Generating metadata...", 75, "generating_metadata"))
+            val metadataResult = engine.generateMetadata(transcription.text, transcription.language, llmProvider)
+            val metadata = metadataResult.getOrNull()
+            if (metadata != null) {
+                val metadataRepo = MetadataRepository(applicationContext)
+                val metadataSaved = metadataRepo.saveMetadata(folderUriStr, baseName, metadata)
+                Log.d(TAG, "Metadata saved: $metadataSaved")
+            } else {
+                val metadataError = metadataResult.exceptionOrNull()
+                Log.w(TAG, "Metadata generation failed, transcript already saved", metadataError)
+            }
 
             setForegroundAsync(buildForegroundInfo("Completed", 100, "completed"))
             Log.d(TAG, "Transcription worker completed successfully")
@@ -81,17 +85,6 @@ class TranscriptionWorker(
             setForegroundAsync(buildForegroundInfo("Error: ${e.message}", 0, "error"))
             Result.failure()
         }
-    }
-
-    private fun generateMetadata(transcription: AiTranscription): AiMetadata {
-        return AiMetadata(
-            summary = transcription.text.take(200) + if (transcription.text.length > 200) "..." else "",
-            category = null,
-            tags = emptyList(),
-            notes = null,
-            transcriptionRef = null,
-            generatedAt = System.currentTimeMillis()
-        )
     }
 
     private fun buildForegroundInfo(message: String, progress: Int, phase: String): ForegroundInfo {
@@ -135,5 +128,6 @@ class TranscriptionWorker(
         const val KEY_LANGUAGE = "language"
         const val KEY_SERVER_URL = "server_url"
         const val KEY_USE_REMOTE = "use_remote"
+        const val KEY_LLM_PROVIDER = "llm_provider"
     }
 }

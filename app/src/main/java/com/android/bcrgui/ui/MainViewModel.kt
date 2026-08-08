@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.android.bcrgui.model.Bookmark
 import com.android.bcrgui.model.BookmarkRepository
@@ -390,8 +391,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .putString(TranscriptionWorker.KEY_BASE_NAME, baseName)
             .putString(TranscriptionWorker.KEY_AUDIO_URI, recording.uri.toString())
             .putString(TranscriptionWorker.KEY_MODEL_NAME, _aiModel.value)
+            .putString(TranscriptionWorker.KEY_LANGUAGE, "en")
             .putString(TranscriptionWorker.KEY_SERVER_URL, _aiServerUrl.value)
             .putBoolean(TranscriptionWorker.KEY_USE_REMOTE, _aiServerUrl.value.isNotBlank())
+            .putString(TranscriptionWorker.KEY_LLM_PROVIDER, _aiLlmProvider.value)
             .build()
 
         val request = OneTimeWorkRequestBuilder<TranscriptionWorker>()
@@ -407,13 +410,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         android.util.Log.d("MainViewModel", "Enqueued transcription work: transcribe_$baseName")
         loadRecordings()
 
-        // Reload transcript/metadata after the worker finishes
         viewModelScope.launch {
-            kotlinx.coroutines.delay(3000)
-            _selectedRecording.value?.let { rec ->
-                android.util.Log.d("MainViewModel", "Delayed reload of transcript/metadata for ${rec.displayName}")
-                loadSelectedTranscript()
-                loadSelectedMetadata()
+            workManager.getWorkInfosForUniqueWorkFlow("transcribe_$baseName").collect { workInfos ->
+                val workInfo = workInfos.firstOrNull()
+                if (workInfo != null) {
+                    when (workInfo.state) {
+                        WorkInfo.State.SUCCEEDED -> {
+                            android.util.Log.d("MainViewModel", "Work succeeded, reloading transcript/metadata for $baseName")
+                            loadSelectedTranscript()
+                            loadSelectedMetadata()
+                        }
+                        WorkInfo.State.FAILED -> {
+                            android.util.Log.e("MainViewModel", "Transcription work failed for $baseName")
+                        }
+                        WorkInfo.State.CANCELLED -> {
+                            android.util.Log.w("MainViewModel", "Transcription work cancelled for $baseName")
+                        }
+                        else -> { /* enqueued, running, blocked */ }
+                    }
+                }
             }
         }
     }

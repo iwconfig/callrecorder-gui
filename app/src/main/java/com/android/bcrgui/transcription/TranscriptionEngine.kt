@@ -2,6 +2,7 @@ package com.android.bcrgui.transcription
 
 import android.content.Context
 import android.util.Log
+import com.android.bcrgui.model.AiMetadata
 import com.android.bcrgui.model.AiTranscription
 import com.android.bcrgui.model.TranscriptionSegment
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,6 +14,12 @@ interface TranscriptionEngine {
         modelName: String,
         language: String? = null
     ): Result<AiTranscription>
+
+    suspend fun generateMetadata(
+        transcriptionText: String,
+        language: String? = null,
+        llmProvider: String = "none"
+    ): Result<AiMetadata>
 
     suspend fun cancel()
 }
@@ -112,6 +119,53 @@ class RemoteTranscriptionEngine(
     override suspend fun cancel() {
     }
 
+    override suspend fun generateMetadata(
+        transcriptionText: String,
+        language: String?,
+        llmProvider: String
+    ): Result<AiMetadata> {
+        return try {
+            Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
+            val requestJson = org.json.JSONObject().apply {
+                put("text", transcriptionText)
+                put("language", language ?: "en")
+                put("llm_provider", llmProvider)
+            }
+            val requestBody = okhttp3.RequestBody.create(
+                "application/json".toMediaType(),
+                requestJson.toString()
+            )
+            val request = okhttp3.Request.Builder()
+                .url("$serverUrl/v1/metadata")
+                .post(requestBody)
+                .build()
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("Metadata server error: ${response.code} ${response.message}"))
+            }
+            val responseBody = response.body?.string() ?: return Result.failure(Exception("Empty metadata response"))
+            Log.d(TAG, "RemoteTranscriptionEngine: metadata response=${responseBody.take(500)}")
+            val resultJson = org.json.JSONObject(responseBody)
+            val tagsArray = resultJson.optJSONArray("tags") ?: org.json.JSONArray()
+            val tags = mutableListOf<String>()
+            for (i in 0 until tagsArray.length()) {
+                tags.add(tagsArray.optString(i, ""))
+            }
+            val metadata = AiMetadata(
+                summary = resultJson.optString("summary", null),
+                category = resultJson.optString("category", null),
+                tags = tags,
+                notes = resultJson.optString("notes", null),
+                transcriptionRef = null,
+                generatedAt = System.currentTimeMillis()
+            )
+            Result.success(metadata)
+        } catch (e: Exception) {
+            Log.e(TAG, "RemoteTranscriptionEngine: metadata error", e)
+            Result.failure(e)
+        }
+    }
+
     companion object {
         private const val TAG = "RemoteTranscriptionEngine"
     }
@@ -132,6 +186,23 @@ class OnDeviceTranscriptionEngine : TranscriptionEngine {
                 model = "on-device-$modelName",
                 segments = emptyList(),
                 durationMs = 0L,
+                generatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    override suspend fun generateMetadata(
+        transcriptionText: String,
+        language: String?,
+        llmProvider: String
+    ): Result<AiMetadata> {
+        return Result.success(
+            AiMetadata(
+                summary = transcriptionText.take(200) + if (transcriptionText.length > 200) "..." else "",
+                category = null,
+                tags = emptyList(),
+                notes = null,
+                transcriptionRef = null,
                 generatedAt = System.currentTimeMillis()
             )
         )
