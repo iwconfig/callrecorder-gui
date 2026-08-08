@@ -5,6 +5,10 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
+# Force CPU-only operation before any torch/whisperx imports
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["TORCH_CUDA_ARCH_LIST"] = ""
+
 import torch
 import whisperx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -27,12 +31,23 @@ _diarize_model = None
 def get_model():
     global _model
     if _model is None:
-        _model = whisperx.load_model(
-            WHISPER_MODEL,
-            device=DEVICE,
-            compute_type=COMPUTE_TYPE,
-            download_root=str(CACHE_DIR),
-        )
+        try:
+            _model = whisperx.load_model(
+                WHISPER_MODEL,
+                device=DEVICE,
+                compute_type=COMPUTE_TYPE,
+                download_root=str(CACHE_DIR),
+            )
+        except OSError as e:
+            msg = str(e)
+            if "libcudart" in msg or "cudart" in msg.lower() or ("cuda" in msg.lower() and "library" in msg.lower()):
+                raise RuntimeError(
+                    "Failed to load transcription model: missing CUDA runtime library. "
+                    "This server is configured for CPU-only inference. "
+                    "Please ensure CPU-only PyTorch and torchaudio are installed "
+                    "(e.g., reinstall with: uv sync --extra cpu)."
+                ) from e
+            raise
     return _model
 
 
@@ -81,7 +96,10 @@ async def transcribe(
 
     try:
         start = time.time()
-        whisper_model = get_model()
+        try:
+            whisper_model = get_model()
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
         result = whisper_model.transcribe(tmp_path, language=lang if lang != "auto" else None)
 
         segments = []
@@ -99,7 +117,10 @@ async def transcribe(
         if diarize:
             if not HF_TOKEN:
                 raise HTTPException(status_code=500, detail="Diarization requires HF_TOKEN environment variable")
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
+            try:
+                diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
+            except RuntimeError as e:
+                raise HTTPException(status_code=500, detail=str(e))
             diarize_segments = diarize_model(tmp_path)
             result = whisperx.assign_word_speakers(diarize_segments, result)
             segments = []

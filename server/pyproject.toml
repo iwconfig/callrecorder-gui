@@ -9,6 +9,7 @@ dependencies = [
     "faster-whisper>=1.0.3",
     "ctranslate2>=4.4.0",
     "pyannote.audio>=3.1.1",
+    "torchaudio>=2.3.0",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +18,7 @@ cu121 = ["torch>=2.3.0"]
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
