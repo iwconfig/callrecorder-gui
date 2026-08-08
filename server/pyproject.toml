@@ -1,6 +1,7 @@
 [project]
 name = "whisperx-server"
 version = "0.1.0"
+requires-python = ">=3.14"
 dependencies = [
     "fastapi==0.111.0",
     "uvicorn==0.30.0",
@@ -13,12 +14,19 @@ dependencies = [
 
 [project.optional-dependencies]
 cpu = ["torch>=2.3.0"]
-cu121 = ["torch>=2.3.0"]
+xpu = ["triton-xpu>=3.7.0"]
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+triton-xpu = { index = "pytorch-xpu" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
 explicit = true
