@@ -26,9 +26,18 @@ class TranscriptionWorker(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.Default) {
-        val folderUriStr = inputData.getString(KEY_FOLDER_URI) ?: return@withContext Result.failure()
-        val baseName = inputData.getString(KEY_BASE_NAME) ?: return@withContext Result.failure()
-        val audioUriStr = inputData.getString(KEY_AUDIO_URI) ?: return@withContext Result.failure()
+        val folderUriStr = inputData.getString(KEY_FOLDER_URI) ?: run {
+            Log.e(TAG, "Missing KEY_FOLDER_URI")
+            return@withContext Result.failure()
+        }
+        val baseName = inputData.getString(KEY_BASE_NAME) ?: run {
+            Log.e(TAG, "Missing KEY_BASE_NAME")
+            return@withContext Result.failure()
+        }
+        val audioUriStr = inputData.getString(KEY_AUDIO_URI) ?: run {
+            Log.e(TAG, "Missing KEY_AUDIO_URI")
+            return@withContext Result.failure()
+        }
         val audioUri = android.net.Uri.parse(audioUriStr)
         val modelName = inputData.getString(KEY_MODEL_NAME) ?: "default"
         val language = inputData.getString(KEY_LANGUAGE)
