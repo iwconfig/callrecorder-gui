@@ -43,6 +43,8 @@ fun PlayerSheet(
     val transcript by viewModel.selectedTranscript.collectAsState()
     val metadata by viewModel.selectedMetadata.collectAsState()
 
+    android.util.Log.d("PlayerSheet", "State: recording=${recording?.displayName}, transcript=${transcript?.text?.take(50)}, metadata=${metadata?.summary?.take(50)}")
+
     var isExpanded by remember { mutableStateOf(false) }
     var showTranscript by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
@@ -274,7 +276,10 @@ fun PlayerSheet(
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        IconButton(onClick = { showTranscript = !showTranscript }) {
+                        IconButton(onClick = {
+                            android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript=${transcript?.text?.take(50)}")
+                            showTranscript = !showTranscript
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.Description,
                                 contentDescription = "Transcript",
@@ -285,6 +290,7 @@ fun PlayerSheet(
 
                     if (showTranscript) {
                         val currentTranscript = transcript
+                        android.util.Log.d("PlayerSheet", "Rendering transcript card: currentTranscript=${currentTranscript?.text?.take(50)}")
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
@@ -314,6 +320,7 @@ fun PlayerSheet(
                     }
 
                     val currentMetadata = metadata
+                    android.util.Log.d("PlayerSheet", "Rendering metadata card: currentMetadata=${currentMetadata?.summary?.take(50)}")
                     if (currentMetadata != null && currentMetadata.summary != null) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),

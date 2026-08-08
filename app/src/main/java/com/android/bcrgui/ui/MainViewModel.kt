@@ -414,8 +414,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
+        android.util.Log.d("MainViewModel", "loadSelectedTranscript: baseName=$baseName, folder=$folder")
         viewModelScope.launch {
             val transcript = transcriptRepository.getTranscript(folder, baseName)
+            android.util.Log.d("MainViewModel", "loadSelectedTranscript result: ${transcript?.text?.take(100)}")
             _selectedTranscript.value = transcript
         }
     }
@@ -426,8 +428,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
 
+        android.util.Log.d("MainViewModel", "loadSelectedMetadata: baseName=$baseName, folder=$folder")
         viewModelScope.launch {
             val metadata = metadataRepository.getMetadata(folder, baseName)
+            android.util.Log.d("MainViewModel", "loadSelectedMetadata result: summary=${metadata?.summary?.take(100)}")
             _selectedMetadata.value = metadata
         }
     }
