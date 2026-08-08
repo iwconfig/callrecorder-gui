@@ -449,7 +449,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedTranscript: baseName=${redact(baseName)}, folder=$folder")
         viewModelScope.launch {
             val transcript = transcriptRepository.getTranscript(folder, baseName)
-            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedTranscript result: ${transcript?.text?.take(100)}")
+            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedTranscript result: len=${transcript?.text?.length}, segments=${transcript?.segments?.size}")
             _selectedTranscript.value = transcript
         }
     }
@@ -463,7 +463,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedMetadata: baseName=${redact(baseName)}, folder=$folder")
         viewModelScope.launch {
             val metadata = metadataRepository.getMetadata(folder, baseName)
-            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedMetadata result: summary=${metadata?.summary?.take(100)}")
+            if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "loadSelectedMetadata result: summary_len=${metadata?.summary?.length}, tags=${metadata?.tags?.size}")
             _selectedMetadata.value = metadata
         }
     }

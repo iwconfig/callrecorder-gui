@@ -40,7 +40,7 @@ class RemoteTranscriptionEngine(
         diarize: Boolean
     ): Result<AiTranscription> {
         return try {
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: url=$serverUrl, model=$modelName, language=$language, diarize=$diarize")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: url=${serverUrl.replace(Regex("\\d"), "X")}, model=$modelName, language=$language, diarize=$diarize")
             val stream = context.contentResolver.openInputStream(audioUri) ?: return Result.failure(Exception("Cannot open audio URI"))
             val bytes = stream.readBytes()
 
