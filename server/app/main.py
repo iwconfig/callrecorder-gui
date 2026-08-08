@@ -2,8 +2,13 @@ import os
 import time
 import json
 import hashlib
+import logging
+import traceback
 from pathlib import Path
 from typing import Optional
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("whisperx-server")
 
 # Force CPU-only operation before any torch/whisperx imports
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -34,13 +39,16 @@ def get_model():
     global _model
     if _model is None:
         try:
+            logger.info("Loading WhisperX model: %s on device=%s compute_type=%s", WHISPER_MODEL, DEVICE, COMPUTE_TYPE)
             _model = whisperx.load_model(
                 WHISPER_MODEL,
                 device=DEVICE,
                 compute_type=COMPUTE_TYPE,
                 download_root=str(CACHE_DIR),
             )
+            logger.info("WhisperX model loaded successfully")
         except Exception as e:
+            logger.error("Failed to load WhisperX model", exc_info=True)
             raise RuntimeError(
                 f"Failed to load transcription model: {type(e).__name__}: {e}. "
                 "This may indicate incompatible package versions. "
@@ -98,8 +106,12 @@ async def transcribe(
         try:
             whisper_model = get_model()
         except RuntimeError as e:
+            logger.error("Model loading failed: %s", e)
             raise HTTPException(status_code=500, detail=str(e))
+        
+        logger.info("Starting transcription for file size=%dMB lang=%s", size_mb, lang)
         result = whisper_model.transcribe(tmp_path, language=lang if lang != "auto" else None)
+        logger.info("Transcription completed: %d segments", len(result.get("segments", [])))
 
         segments = []
         for seg in result.get("segments", []):
@@ -117,9 +129,12 @@ async def transcribe(
             if not HF_TOKEN:
                 raise HTTPException(status_code=500, detail="Diarization requires HF_TOKEN environment variable")
             try:
+                logger.info("Loading diarization pipeline")
                 diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
             except Exception as e:
+                logger.error("Diarization model loading failed", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Failed to load diarization model: {type(e).__name__}: {e}")
+            logger.info("Running diarization")
             diarize_segments = diarize_model(tmp_path)
             result = whisperx.assign_word_speakers(diarize_segments, result)
             segments = []
@@ -139,6 +154,11 @@ async def transcribe(
             duration_ms=duration_ms,
             segments=segments,
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Transcription endpoint error", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {type(e).__name__}: {e}")
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -169,7 +189,8 @@ def metadata(req: MetadataRequest):
             summary = content.split("\n")[0].strip()
             tags = [w.strip(".,!?;:\"'()[]{}") for w in transcript.split() if 4 < len(w.strip(".,!?;:\"'()[]{}")) < 20][:5]
             return MetadataResponse(summary=summary, tags=tags, notes="")
-        except Exception:
+        except Exception as e:
+            logger.warning("LLM metadata generation failed: %s", e, exc_info=True)
             pass
 
     summary = transcript[:200] + ("..." if len(transcript) > 200 else "")
