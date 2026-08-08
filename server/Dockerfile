@@ -1,5 +1,4 @@
 ARG BASE_IMAGE=python:3.12-slim
-ARG PYTORCH_INDEX=https://download.pytorch.org/whl/cpu
 
 FROM python:3.12-slim AS builder
 
@@ -12,10 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY pyproject.toml .
-RUN sed -i "s|https://download.pytorch.org/whl/cpu|${PYTORCH_INDEX}|" pyproject.toml && \
-    pip install --no-cache-dir uv && \
-    uv sync --extra cpu --frozen --no-dev
+COPY pyproject.toml uv.lock .
+RUN pip install --no-cache-dir uv && \
+    uv sync --extra cpu --no-dev
 
 COPY . .
 
