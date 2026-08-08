@@ -49,7 +49,20 @@ jobs:
         VERSION_NAME=$(grep "versionName =" app/build.gradle.kts | head -n 1 | cut -d'"' -f2)
         echo "version=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-    # Step 7: Create GitHub Release and Upload APKs
+    # Step 7: Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Step 8: Build Docker image
+    - name: Build Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: server
+        file: server/Dockerfile
+        push: false
+        tags: whisperx-server:latest
+
+    # Step 9: Create GitHub Release and Upload APKs
     - name: Create Release
       if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
