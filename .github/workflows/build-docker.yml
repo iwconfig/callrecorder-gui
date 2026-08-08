@@ -1,4 +1,4 @@
-name: Build Docker Image
+name: Build Docker Images
 
 on:
   push:
@@ -14,6 +14,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [cpu, xpu]
 
     steps:
     - uses: actions/checkout@v4
@@ -28,10 +32,13 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push Docker image
+    - name: Build and push ${{ matrix.variant }} image
       uses: docker/build-push-action@v6
       with:
         context: server
         file: server/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository_owner }}/callrecorder-server:latest
+        tags: ghcr.io/${{ github.repository_owner }}/callrecorder-server:${{ matrix.variant }}-latest
+        build-args: |
+          BASE_IMAGE=python:3.14-slim
+          UV_EXTRAS=${{ matrix.variant }}
