@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=python:3.12-slim
-ARG REQUIREMENTS_FILE=requirements.txt
+ARG UV_EXTRA=cpu
 
 FROM ${BASE_IMAGE}
 
@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt requirements-gpu.txt ${REQUIREMENTS_FILE} .
-RUN pip install --no-cache-dir -r ${REQUIREMENTS_FILE}
+COPY pyproject.toml .
+RUN pip install --no-cache-dir uv && \
+    uv sync --extra ${UV_EXTRA} --frozen --no-dev
 
 COPY . .
 
