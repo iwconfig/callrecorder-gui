@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=python:3.14-slim
-ARG UV_EXTRAS=cpu
 
 FROM python:3.14-slim AS builder
+ARG UV_EXTRAS=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
