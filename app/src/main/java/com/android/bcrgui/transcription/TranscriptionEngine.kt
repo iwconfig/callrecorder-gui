@@ -67,7 +67,7 @@ class RemoteTranscriptionEngine(
                 .post(multipartBody)
                 .build()
 
-            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: sending request to ${request.url.toString().replace(Regex("\\d"), "X")}")
             val response = httpClient.newCall(request).execute()
             if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: response code=${response.code}, message=${response.message}")
 

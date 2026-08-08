@@ -46,7 +46,7 @@ class TranscriptionWorker(
         val diarize = inputData.getBoolean(KEY_DIARIZE, false)
         val llmProvider = inputData.getString(KEY_LLM_PROVIDER) ?: "none"
 
-        if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=${redact(baseName)}, useRemote=$useRemote, serverUrl=$serverUrl, audioUri=$audioUri")
+        if (BuildConfig.DEBUG) Log.d(TAG, "doWork: baseName=${redact(baseName)}, useRemote=$useRemote, serverUrl=${serverUrl.replace(Regex("\\d"), "X")}, audioUri=${audioUri.toString().replace(Regex("\\d"), "X")}")
 
         try {
             setForegroundAsync(buildForegroundInfo("Starting transcription...", 0, "starting"))
