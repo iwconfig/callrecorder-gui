@@ -53,7 +53,14 @@ class TranscriptionWorker(
 
             val engine: TranscriptionEngine = if (useRemote && !serverUrl.isNullOrBlank()) {
                 if (BuildConfig.DEBUG) Log.d(TAG, "Using RemoteTranscriptionEngine")
-                RemoteTranscriptionEngine(serverUrl, okhttp3.OkHttpClient.Builder().build())
+                RemoteTranscriptionEngine(
+                    serverUrl,
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(300, java.util.concurrent.TimeUnit.SECONDS)
+                        .writeTimeout(300, java.util.concurrent.TimeUnit.SECONDS)
+                        .build()
+                )
             } else {
                 if (BuildConfig.DEBUG) Log.d(TAG, "Using OnDeviceTranscriptionEngine")
                 OnDeviceTranscriptionEngine()

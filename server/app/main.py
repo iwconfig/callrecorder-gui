@@ -38,16 +38,13 @@ def get_model():
                 compute_type=COMPUTE_TYPE,
                 download_root=str(CACHE_DIR),
             )
-        except OSError as e:
-            msg = str(e)
-            if "libcudart" in msg or "cudart" in msg.lower() or ("cuda" in msg.lower() and "library" in msg.lower()):
-                raise RuntimeError(
-                    "Failed to load transcription model: missing CUDA runtime library. "
-                    "This server is configured for CPU-only inference. "
-                    "Please ensure CPU-only PyTorch and torchaudio are installed "
-                    "(e.g., reinstall with: uv sync --extra cpu)."
-                ) from e
-            raise
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load transcription model: {type(e).__name__}: {e}. "
+                "This may indicate incompatible package versions. "
+                "Please ensure CPU-only PyTorch and compatible torchaudio/pyannote.audio are installed "
+                "(e.g., reinstall with: uv sync --extra cpu)."
+            ) from e
     return _model
 
 
@@ -119,8 +116,8 @@ async def transcribe(
                 raise HTTPException(status_code=500, detail="Diarization requires HF_TOKEN environment variable")
             try:
                 diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
-            except RuntimeError as e:
-                raise HTTPException(status_code=500, detail=str(e))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to load diarization model: {type(e).__name__}: {e}")
             diarize_segments = diarize_model(tmp_path)
             result = whisperx.assign_word_speakers(diarize_segments, result)
             segments = []
