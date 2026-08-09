@@ -122,9 +122,8 @@ class RemoteTranscriptionEngine(
         return try {
             if (BuildConfig.DEBUG) Log.d(TAG, "RemoteTranscriptionEngine: requesting metadata from /v1/metadata")
             val requestJson = org.json.JSONObject().apply {
-                put("text", transcriptionText)
+                put("transcript", transcriptionText)
                 put("language", language ?: "en")
-                put("llm_provider", llmProvider)
             }
             val requestBody = requestJson.toString().toRequestBody("application/json".toMediaType())
             val request = okhttp3.Request.Builder()
