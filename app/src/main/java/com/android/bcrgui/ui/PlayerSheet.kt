@@ -294,7 +294,7 @@ fun TranscriptCard(transcript: AiTranscription?) {
             )
             if (currentTranscript != null) {
                 if (currentTranscript.segments.isNotEmpty()) {
-                    Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         currentTranscript.segments.forEach { seg ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 seg.speaker?.let { speaker ->
