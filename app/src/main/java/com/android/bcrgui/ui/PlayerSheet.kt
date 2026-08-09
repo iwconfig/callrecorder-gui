@@ -571,7 +571,6 @@ fun PlayerSheet(
 ) {
     val recording by viewModel.selectedRecording.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
-    val currentPosition by viewModel.currentPosition.collectAsState()
     val duration by viewModel.duration.collectAsState()
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val bookmarks by viewModel.selectedBookmarks.collectAsState()
@@ -599,6 +598,7 @@ fun PlayerSheet(
 
     Box(modifier = modifier) {
         if (isExpanded) {
+            val currentPosition by viewModel.currentPosition.collectAsState()
             ExpandedPlayerContent(
                 rec = rec,
                 isPlaying = isPlaying,
@@ -618,6 +618,7 @@ fun PlayerSheet(
                 }
             )
         } else {
+            val currentPosition by viewModel.currentPosition.collectAsState()
             CollapsedPlayerCard(
                 rec = rec,
                 isPlaying = isPlaying,
@@ -653,6 +654,7 @@ fun PlayerSheet(
     }
 
     if (showAddBookmarkDialog && rec != null) {
+        val currentPosition by viewModel.currentPosition.collectAsState()
         AlertDialog(
             onDismissRequest = { showAddBookmarkDialog = false },
             title = { Text("Add Bookmark") },
