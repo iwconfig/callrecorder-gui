@@ -570,7 +570,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadContactLanguageOverrides() {
         val json = prefs.contactLanguageMap
-        val map = mutableMap<String, String>()
+        val map = mutableMapOf<String, String>()
         if (json.isNotBlank()) {
             try {
                 val obj = org.json.JSONObject(json)
