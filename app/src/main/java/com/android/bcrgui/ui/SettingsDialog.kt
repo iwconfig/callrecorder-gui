@@ -552,8 +552,15 @@ fun SettingsDialog(
                                     value = tempAiLanguage,
                                     onValueChange = {},
                                     readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = expanded,
+                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                     shape = RoundedCornerShape(8.dp),
                                     textStyle = MaterialTheme.typography.bodySmall,
                                     singleLine = true
@@ -617,8 +624,15 @@ fun SettingsDialog(
                                     onValueChange = {},
                                     readOnly = true,
                                     placeholder = { Text("Select contact") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = contactExpanded) },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = contactExpanded,
+                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                     shape = RoundedCornerShape(8.dp),
                                     textStyle = MaterialTheme.typography.bodySmall,
                                     singleLine = true
@@ -649,8 +663,15 @@ fun SettingsDialog(
                                     value = tempContactLanguageCode,
                                     onValueChange = {},
                                     readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = langExpanded) },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = langExpanded,
+                                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.SecondaryEditable)
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                     shape = RoundedCornerShape(8.dp),
                                     textStyle = MaterialTheme.typography.bodySmall,
                                     singleLine = true
