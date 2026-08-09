@@ -2,7 +2,6 @@ package com.android.bcrgui.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +43,439 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun ExpandedPlayerContent(
+    rec: com.android.bcrgui.model.CallRecording,
+    isPlaying: Boolean,
+    currentPosition: Long,
+    duration: Long,
+    playbackSpeed: Float,
+    bookmarks: List<Bookmark>,
+    showTranscript: Boolean,
+    transcript: AiTranscription?,
+    metadata: AiMetadata?,
+    viewModel: MainViewModel,
+    onCollapse: () -> Unit,
+    onShowBookmarks: () -> Unit,
+    onToggleTranscript: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCollapse) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
+                }
+                Text(
+                    text = "Now Playing",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                IconButton(onClick = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/*"
+                        putExtra(Intent.EXTRA_STREAM, rec.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Recording"))
+                }) {
+                    Icon(Icons.Default.Share, contentDescription = "Share")
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(0.2f))
+
+            val dirColor = when (rec.direction?.lowercase()) {
+                "in" -> Color(0xFF4CAF50)
+                "out" -> Color(0xFF6200EE)
+                else -> Color(0xFFFF9800)
+            }
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(dirColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = when (rec.direction?.lowercase()) {
+                        "in" -> Icons.Filled.CallReceived
+                        "out" -> Icons.Filled.CallMade
+                        else -> Icons.Default.Call
+                    },
+                    contentDescription = null,
+                    tint = dirColor,
+                    modifier = Modifier.size(54.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = rec.resolvedName,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            rec.resolvedSubtext?.let { sub ->
+                Text(
+                    text = sub,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+            Text(
+                text = rec.date ?: "",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+
+            Spacer(modifier = Modifier.weight(0.3f))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Slider(
+                    value = currentPosition.toFloat(),
+                    onValueChange = { viewModel.seekTo(it.toLong()) },
+                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 100f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatDuration(currentPosition),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatDuration(duration),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
+                    val isSelected = playbackSpeed == speed
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                else Color.Transparent
+                            )
+                            .clickable { viewModel.setPlaybackSpeed(speed) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "${speed}x",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { viewModel.skipBackward() },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Replay10,
+                        contentDescription = "Back 10s",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                FloatingActionButton(
+                    onClick = { viewModel.togglePlayPause() },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = { viewModel.skipForward() },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Forward10,
+                        contentDescription = "Forward 10s",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onShowBookmarks) {
+                    Icon(
+                        imageVector = Icons.Default.Bookmark,
+                        contentDescription = "Bookmarks",
+                        tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                IconButton(onClick = onToggleTranscript) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = "Transcript",
+                        tint = if (showTranscript) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (showTranscript) {
+                val currentTranscript = transcript
+                if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: transcript_len=${currentTranscript?.text?.length}, segments=${currentTranscript?.segments?.size}")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Transcript",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (currentTranscript != null) {
+                            if (currentTranscript.segments.isNotEmpty()) {
+                                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    currentTranscript.segments.forEach { seg ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            seg.speaker?.let { speaker ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                    modifier = Modifier.padding(end = 8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = speaker,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = seg.text,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = currentTranscript.text,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "No transcript available",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            val currentMetadata = metadata
+            if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering metadata card: summary_len=${currentMetadata?.summary?.length}, tags=${currentMetadata?.tags?.size}")
+            if (currentMetadata != null && currentMetadata.summary != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "AI Summary",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        Text(
+                            text = currentMetadata.summary,
+                            fontSize = 12.sp
+                        )
+                        if (!currentMetadata.tags.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                currentMetadata.tags.forEach { tag ->
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = tag,
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(0.2f))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollapsedPlayerCard(
+    rec: com.android.bcrgui.model.CallRecording,
+    isPlaying: Boolean,
+    currentPosition: Long,
+    duration: Long,
+    playbackSpeed: Float,
+    viewModel: MainViewModel,
+    onExpand: () -> Unit,
+    onClose: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onExpand() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column {
+            val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(3.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val dirColor = when (rec.direction?.lowercase()) {
+                    "in" -> Color(0xFF4CAF50)
+                    "out" -> Color(0xFF6200EE)
+                    else -> Color(0xFFFF9800)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(dirColor.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when (rec.direction?.lowercase()) {
+                            "in" -> Icons.Filled.CallReceived
+                            "out" -> Icons.Filled.CallMade
+                            else -> Icons.Default.Call
+                        },
+                        contentDescription = null,
+                        tint = dirColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = rec.resolvedName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${formatDuration(currentPosition)} / ${formatDuration(duration)} • ${playbackSpeed}x",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(onClick = { viewModel.togglePlayPause() }) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = "Play/Pause"
+                    )
+                }
+
+                IconButton(onClick = onClose) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Player"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun PlayerSheet(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
@@ -76,421 +508,41 @@ fun PlayerSheet(
 
     val rec = recording!!
 
-    AnimatedContent(
-        targetState = isExpanded,
-        modifier = modifier,
-        transitionSpec = {
-            slideInVertically(initialOffsetY = { it }) + fadeIn() togetherWith
-                    slideOutVertically(targetOffsetY = { it }) + fadeOut()
-        },
-        label = "PlayerAnimation"
-    ) { expanded ->
-        if (expanded) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp)
-                            .windowInsetsPadding(WindowInsets.safeDrawing)
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { isExpanded = false }) {
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
-                        }
-                        Text(
-                            text = "Now Playing",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                        IconButton(onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "audio/*"
-                                putExtra(Intent.EXTRA_STREAM, rec.uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Recording"))
-                        }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.weight(0.2f))
-
-                    val dirColor = when (rec.direction?.lowercase()) {
-                        "in" -> Color(0xFF4CAF50)
-                        "out" -> Color(0xFF6200EE)
-                        else -> Color(0xFFFF9800)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape)
-                            .background(dirColor.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = when (rec.direction?.lowercase()) {
-                                "in" -> Icons.Filled.CallReceived
-                                "out" -> Icons.Filled.CallMade
-                                else -> Icons.Default.Call
-                            },
-                            contentDescription = null,
-                            tint = dirColor,
-                            modifier = Modifier.size(54.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = rec.resolvedName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    rec.resolvedSubtext?.let { sub ->
-                        Text(
-                            text = sub,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                    Text(
-                        text = rec.date ?: "",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-
-                    Spacer(modifier = Modifier.weight(0.3f))
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Slider(
-                            value = currentPosition.toFloat(),
-                            onValueChange = { viewModel.seekTo(it.toLong()) },
-                            valueRange = 0f..(if (duration > 0) duration.toFloat() else 100f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatDuration(currentPosition),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = formatDuration(duration),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
-                            val isSelected = playbackSpeed == speed
-                            Box(
-                                modifier = Modifier
-                                    .padding(horizontal = 4.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                        else Color.Transparent
-                                    )
-                                    .clickable { viewModel.setPlaybackSpeed(speed) }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = "${speed}x",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.skipBackward() },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Replay10,
-                                contentDescription = "Back 10s",
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        FloatingActionButton(
-                            onClick = { viewModel.togglePlayPause() },
-                            shape = CircleShape,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(64.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { viewModel.skipForward() },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Forward10,
-                                contentDescription = "Forward 10s",
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { showBookmarks = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Bookmark,
-                                contentDescription = "Bookmarks",
-                                tint = if (bookmarks.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        IconButton(onClick = {
-                            if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript_len=${transcript?.text?.length}")
-                            showTranscript = !showTranscript
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = "Transcript",
-                                tint = if (showTranscript) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    if (showTranscript) {
-                        val currentTranscript = transcript
-                        if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: transcript_len=${currentTranscript?.text?.length}, segments=${currentTranscript?.segments?.size}")
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "Transcript",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                if (currentTranscript != null) {
-                                    if (currentTranscript.segments.isNotEmpty()) {
-                                        Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            currentTranscript.segments.forEach { seg ->
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    seg.speaker?.let { speaker ->
-                                                        Surface(
-                                                            shape = RoundedCornerShape(4.dp),
-                                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                                            modifier = Modifier.padding(end = 8.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = speaker,
-                                                                fontSize = 10.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                    Text(
-                                                        text = seg.text,
-                                                        fontSize = 12.sp
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = currentTranscript.text,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                } else {
-                                    Text(
-                                        text = "No transcript available",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    val currentMetadata = metadata
-                    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering metadata card: summary_len=${currentMetadata?.summary?.length}, tags=${currentMetadata?.tags?.size}")
-                    if (currentMetadata != null && currentMetadata.summary != null) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f))
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "AI Summary",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                                Text(
-                                    text = currentMetadata.summary,
-                                    fontSize = 12.sp
-                                )
-                                if (!currentMetadata.tags.isNullOrEmpty()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        currentMetadata.tags.forEach { tag ->
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                            ) {
-                                                Text(
-                                                    text = tag,
-                                                    fontSize = 10.sp,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.weight(0.2f))
+    Box(modifier = modifier) {
+        if (isExpanded) {
+            ExpandedPlayerContent(
+                rec = rec,
+                isPlaying = isPlaying,
+                currentPosition = currentPosition,
+                duration = duration,
+                playbackSpeed = playbackSpeed,
+                bookmarks = bookmarks,
+                showTranscript = showTranscript,
+                transcript = transcript,
+                metadata = metadata,
+                viewModel = viewModel,
+                onCollapse = { isExpanded = false },
+                onShowBookmarks = { showBookmarks = true },
+                onToggleTranscript = {
+                    if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Transcript toggle: showTranscript=$showTranscript, transcript_len=${transcript?.text?.length}")
+                    showTranscript = !showTranscript
                 }
-            }
+            )
         } else {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { isExpanded = true },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column {
-                    val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(3.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val dirColor = when (rec.direction?.lowercase()) {
-                            "in" -> Color(0xFF4CAF50)
-                            "out" -> Color(0xFF6200EE)
-                            else -> Color(0xFFFF9800)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(dirColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = when (rec.direction?.lowercase()) {
-                                    "in" -> Icons.Filled.CallReceived
-                                    "out" -> Icons.Filled.CallMade
-                                    else -> Icons.Default.Call
-                                },
-                                contentDescription = null,
-                                tint = dirColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = rec.resolvedName,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${formatDuration(currentPosition)} / ${formatDuration(duration)} • ${playbackSpeed}x",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        IconButton(onClick = { viewModel.togglePlayPause() }) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause"
-                            )
-                        }
-
-                        IconButton(onClick = { viewModel.selectRecording(null) }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close Player"
-                            )
-                        }
-                    }
-                }
-            }
+            CollapsedPlayerCard(
+                rec = rec,
+                isPlaying = isPlaying,
+                currentPosition = currentPosition,
+                duration = duration,
+                playbackSpeed = playbackSpeed,
+                viewModel = viewModel,
+                onExpand = { isExpanded = true },
+                onClose = { viewModel.selectRecording(null) }
+            )
         }
     }
 
+    // Bookmarks and dialogs rendered outside expanded content
     if (showBookmarks && rec != null) {
         BookmarksBottomSheet(
             bookmarks = bookmarks,
