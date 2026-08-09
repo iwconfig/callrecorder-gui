@@ -15,6 +15,7 @@ interface TranscriptionEngine {
         audioUri: android.net.Uri,
         modelName: String,
         language: String? = null,
+        additionalLanguages: String? = null,
         diarize: Boolean = false
     ): Result<AiTranscription>
 
@@ -37,6 +38,7 @@ class RemoteTranscriptionEngine(
         audioUri: android.net.Uri,
         modelName: String,
         language: String?,
+        additionalLanguages: String?,
         diarize: Boolean
     ): Result<AiTranscription> {
         return try {
@@ -55,6 +57,9 @@ class RemoteTranscriptionEngine(
                 .apply {
                     if (!language.isNullOrBlank()) {
                         addFormDataPart("language", language)
+                    }
+                    if (!additionalLanguages.isNullOrBlank()) {
+                        addFormDataPart("additional_languages", additionalLanguages)
                     }
                     if (diarize) {
                         addFormDataPart("diarize", "true")
@@ -169,6 +174,7 @@ class OnDeviceTranscriptionEngine : TranscriptionEngine {
         audioUri: android.net.Uri,
         modelName: String,
         language: String?,
+        additionalLanguages: String?,
         diarize: Boolean
     ): Result<AiTranscription> {
         return Result.success(

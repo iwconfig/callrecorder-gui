@@ -46,7 +46,7 @@ fun SettingsDialog(
     currentAmoledMode: Boolean,
     onDismiss: () -> Unit,
     onSave: (folderUri: String?, template: String, extension: String, accentColor: String, amoledMode: Boolean) -> Unit,
-    onSaveAi: (serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean) -> Unit,
+    onSaveAi: (serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean, language: String, additionalLanguages: String) -> Unit,
     onResetOnboarding: () -> Unit
 ) {
     val context = LocalContext.current
@@ -66,6 +66,13 @@ fun SettingsDialog(
     var tempAiAutoTranscribe by remember { mutableStateOf(aiAutoTranscribe) }
     var tempAiLlmProvider by remember { mutableStateOf(aiLlmProvider) }
     var tempAiDiarize by remember { mutableStateOf(viewModel.aiDiarize.value) }
+    var tempAiLanguage by remember { mutableStateOf(viewModel.aiLanguage.value) }
+    var tempAiAdditionalLanguages by remember { mutableStateOf(viewModel.aiAdditionalLanguages.value) }
+
+    val contactLanguageOverrides by viewModel.contactLanguageOverrides.collectAsState()
+    var showContactLanguageExpanded by remember { mutableStateOf(false) }
+    var tempContactLanguageName by remember { mutableStateOf("") }
+    var tempContactLanguageCode by remember { mutableStateOf("") }
 
     var showResetConfirm by remember { mutableStateOf(false) }
     var showRecycleBinDialog by remember { mutableStateOf(false) }
@@ -485,6 +492,242 @@ fun SettingsDialog(
                         fontSize = 10.sp,
                         color = if (tempAiServerUrl.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Transcription Language",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val languageOptions = listOf(
+                                "auto" to "Auto-detect",
+                                "en" to "English",
+                                "tr" to "Turkish",
+                                "sv" to "Swedish",
+                                "zh" to "Chinese",
+                                "es" to "Spanish",
+                                "fr" to "French",
+                                "de" to "German",
+                                "ja" to "Japanese",
+                                "ko" to "Korean",
+                                "ar" to "Arabic",
+                                "pt" to "Portuguese",
+                                "ru" to "Russian",
+                                "it" to "Italian",
+                                "nl" to "Dutch",
+                                "pl" to "Polish",
+                                "hi" to "Hindi",
+                                "fa" to "Persian",
+                                "he" to "Hebrew",
+                                "th" to "Thai",
+                                "vi" to "Vietnamese",
+                                "uk" to "Ukrainian",
+                                "cs" to "Czech",
+                                "ro" to "Romanian",
+                                "el" to "Greek",
+                                "hu" to "Hungarian",
+                                "fi" to "Finnish",
+                                "da" to "Danish",
+                                "no" to "Norwegian",
+                                "bg" to "Bulgarian",
+                                "hr" to "Croatian",
+                                "sk" to "Slovak",
+                                "ca" to "Catalan",
+                                "id" to "Indonesian",
+                                "ms" to "Malay",
+                                "tl" to "Filipino"
+                            )
+                            var expanded by remember { mutableStateOf(false) }
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = tempAiLanguage,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    textStyle = MaterialTheme.typography.bodySmall,
+                                    singleLine = true
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    languageOptions.forEach { (code, name) ->
+                                        DropdownMenuItem(
+                                            text = { Text("$name ($code)") },
+                                            onClick = {
+                                                tempAiLanguage = code
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Additional languages (comma-separated, e.g. tr,sv)",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = tempAiAdditionalLanguages,
+                            onValueChange = { tempAiAdditionalLanguages = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            singleLine = true,
+                            placeholder = { Text("e.g. tr,sv,zh") }
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Contact-specific languages",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            var contactExpanded by remember { mutableStateOf(false) }
+                            val contactNames = viewModel.contactNames.collectAsState()
+                            ExposedDropdownMenuBox(
+                                expanded = contactExpanded,
+                                onExpandedChange = { contactExpanded = !contactExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = tempContactLanguageName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Select contact") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = contactExpanded) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    textStyle = MaterialTheme.typography.bodySmall,
+                                    singleLine = true
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = contactExpanded,
+                                    onDismissRequest = { contactExpanded = false }
+                                ) {
+                                    contactNames.value.forEach { name ->
+                                        DropdownMenuItem(
+                                            text = { Text(name) },
+                                            onClick = {
+                                                tempContactLanguageName = name
+                                                contactExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            var langExpanded by remember { mutableStateOf(false) }
+                            val langOptions = listOf("auto", "en", "tr", "sv", "zh", "es", "fr", "de", "ja", "ko", "ar", "pt", "ru", "it", "nl", "pl", "hi")
+                            ExposedDropdownMenuBox(
+                                expanded = langExpanded,
+                                onExpandedChange = { langExpanded = !langExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = tempContactLanguageCode,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = langExpanded) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    textStyle = MaterialTheme.typography.bodySmall,
+                                    singleLine = true
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = langExpanded,
+                                    onDismissRequest = { langExpanded = false }
+                                ) {
+                                    langOptions.forEach { code ->
+                                        DropdownMenuItem(
+                                            text = { Text(code) },
+                                            onClick = {
+                                                tempContactLanguageCode = code
+                                                langExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (tempContactLanguageName.isNotBlank() && tempContactLanguageCode.isNotBlank()) {
+                                        viewModel.setContactLanguageOverride(tempContactLanguageName, tempContactLanguageCode)
+                                        tempContactLanguageName = ""
+                                        tempContactLanguageCode = ""
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                enabled = tempContactLanguageName.isNotBlank() && tempContactLanguageCode.isNotBlank()
+                            ) {
+                                Text("Set", fontSize = 12.sp)
+                            }
+                            if (tempContactLanguageName.isNotBlank()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.removeContactLanguageOverride(tempContactLanguageName)
+                                        tempContactLanguageName = ""
+                                        tempContactLanguageCode = ""
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Clear", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        if (contactLanguageOverrides.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                contactLanguageOverrides.forEach { (name, lang) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "$name → $lang",
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        TextButton(
+                                            onClick = { viewModel.removeContactLanguageOverride(name) },
+                                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                        ) {
+                                            Text("Remove", fontSize = 10.sp, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -620,7 +863,7 @@ fun SettingsDialog(
             Button(
                 onClick = {
                     onSave(tempFolderUri, tempTemplate, tempExtension, tempAccentColor, tempAmoledMode)
-                    onSaveAi(tempAiServerUrl, tempAiModel, tempAiAutoTranscribe, tempAiLlmProvider, tempAiDiarize)
+                    onSaveAi(tempAiServerUrl, tempAiModel, tempAiAutoTranscribe, tempAiLlmProvider, tempAiDiarize, tempAiLanguage, tempAiAdditionalLanguages)
                     onDismiss()
                 },
                 enabled = tempFolderUri != null && tempTemplate.isNotBlank()

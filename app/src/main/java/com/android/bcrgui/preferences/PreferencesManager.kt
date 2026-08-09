@@ -18,7 +18,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_AI_MODEL = "ai_model"
         private const val KEY_AI_AUTO_TRANSCRIBE = "ai_auto_transcribe"
         private const val KEY_AI_LLM_PROVIDER = "ai_llm_provider"
-    private const val KEY_AI_DIARIZE = "ai_diarize"
+        private const val KEY_AI_DIARIZE = "ai_diarize"
+        private const val KEY_AI_LANGUAGE = "ai_language"
+        private const val KEY_AI_ADDITIONAL_LANGUAGES = "ai_additional_languages"
+        private const val KEY_CONTACT_LANGUAGE_MAP = "contact_language_map"
 
         const val DEFAULT_TEMPLATE = "{date}[_{direction}|][_sim{sim_slot}|][_{phone_number}|][_[{contact_name}|{caller_name}|{call_log_name}]|]"
         const val DEFAULT_EXTENSION = "all"
@@ -26,6 +29,9 @@ class PreferencesManager(context: Context) {
         const val DEFAULT_AI_SERVER_URL = ""
         const val DEFAULT_AI_MODEL = "default"
         const val DEFAULT_AI_LLM_PROVIDER = "none"
+        const val DEFAULT_AI_LANGUAGE = "auto"
+        const val DEFAULT_AI_ADDITIONAL_LANGUAGES = ""
+        const val DEFAULT_CONTACT_LANGUAGE_MAP = ""
     }
 
     var folderUri: String?
@@ -71,6 +77,18 @@ class PreferencesManager(context: Context) {
     var aiDiarize: Boolean
         get() = prefs.getBoolean(KEY_AI_DIARIZE, false)
         set(value) = prefs.edit().putBoolean(KEY_AI_DIARIZE, value).apply()
+
+    var aiLanguage: String
+        get() = prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE
+        set(value) = prefs.edit().putString(KEY_AI_LANGUAGE, value).apply()
+
+    var aiAdditionalLanguages: String
+        get() = prefs.getString(KEY_AI_ADDITIONAL_LANGUAGES, DEFAULT_AI_ADDITIONAL_LANGUAGES) ?: DEFAULT_AI_ADDITIONAL_LANGUAGES
+        set(value) = prefs.edit().putString(KEY_AI_ADDITIONAL_LANGUAGES, value).apply()
+
+    var contactLanguageMap: String
+        get() = prefs.getString(KEY_CONTACT_LANGUAGE_MAP, DEFAULT_CONTACT_LANGUAGE_MAP) ?: DEFAULT_CONTACT_LANGUAGE_MAP
+        set(value) = prefs.edit().putString(KEY_CONTACT_LANGUAGE_MAP, value).apply()
 
     fun clear() {
         prefs.edit().clear().apply()

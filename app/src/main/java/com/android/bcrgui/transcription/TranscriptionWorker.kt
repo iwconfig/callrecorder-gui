@@ -41,6 +41,7 @@ class TranscriptionWorker(
         val audioUri = android.net.Uri.parse(audioUriStr)
         val modelName = inputData.getString(KEY_MODEL_NAME) ?: "default"
         val language = inputData.getString(KEY_LANGUAGE)
+        val additionalLanguages = inputData.getString(KEY_ADDITIONAL_LANGUAGES)
         val serverUrl = inputData.getString(KEY_SERVER_URL)
         val useRemote = inputData.getBoolean(KEY_USE_REMOTE, false)
         val diarize = inputData.getBoolean(KEY_DIARIZE, false)
@@ -67,7 +68,7 @@ class TranscriptionWorker(
             }
 
             setForegroundAsync(buildForegroundInfo("Transcribing...", 25, "transcribing"))
-            val transcriptionResult = engine.transcribe(applicationContext, audioUri, modelName, language, diarize)
+            val transcriptionResult = engine.transcribe(applicationContext, audioUri, modelName, language, additionalLanguages, diarize)
 
             if (!transcriptionResult.isSuccess) {
                 val error = transcriptionResult.exceptionOrNull()
@@ -144,6 +145,7 @@ class TranscriptionWorker(
         const val KEY_AUDIO_URI = "audio_uri"
         const val KEY_MODEL_NAME = "model_name"
         const val KEY_LANGUAGE = "language"
+        const val KEY_ADDITIONAL_LANGUAGES = "additional_languages"
         const val KEY_DIARIZE = "diarize"
         const val KEY_SERVER_URL = "server_url"
         const val KEY_USE_REMOTE = "use_remote"

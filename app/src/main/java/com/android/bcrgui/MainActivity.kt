@@ -115,7 +115,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel.saveSettings(folder, template, extension, accent, amoled)
                                 },
                                 onSaveAi = { serverUrl, model, autoTranscribe, llmProvider, diarize ->
-                                    viewModel.saveAiSettings(serverUrl, model, autoTranscribe, llmProvider, diarize)
+                                    viewModel.saveAiSettings(serverUrl, model, autoTranscribe, llmProvider, diarize, viewModel.aiLanguage.value, viewModel.aiAdditionalLanguages.value)
                                 },
                                 onResetOnboarding = {
                                     viewModel.resetOnboarding()

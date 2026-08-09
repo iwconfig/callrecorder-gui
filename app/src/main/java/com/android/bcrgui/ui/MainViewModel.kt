@@ -71,6 +71,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _aiDiarize = MutableStateFlow(prefs.aiDiarize)
     val aiDiarize: StateFlow<Boolean> = _aiDiarize
 
+    private val _aiLanguage = MutableStateFlow(prefs.aiLanguage)
+    val aiLanguage: StateFlow<String> = _aiLanguage
+
+    private val _aiAdditionalLanguages = MutableStateFlow(prefs.aiAdditionalLanguages)
+    val aiAdditionalLanguages: StateFlow<String> = _aiAdditionalLanguages
+
+    private val _contactLanguageOverrides = MutableStateFlow<Map<String, String>>(emptyMap())
+    val contactLanguageOverrides: StateFlow<Map<String, String>> = _contactLanguageOverrides
+
     // UI States
     private val _rawRecordings = MutableStateFlow<List<CallRecording>>(emptyList())
     private val _isLoading = MutableStateFlow(false)
@@ -315,6 +324,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadContacts()
+        loadContactLanguageOverrides()
         loadRecycledFiles()
         if (prefs.isOnboardingCompleted && !prefs.folderUri.isNullOrEmpty()) {
             loadRecordings()
@@ -371,37 +381,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadRecordings()
     }
 
-    fun saveAiSettings(serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean) {
+    fun saveAiSettings(serverUrl: String, model: String, autoTranscribe: Boolean, llmProvider: String, diarize: Boolean, language: String, additionalLanguages: String) {
         prefs.aiServerUrl = serverUrl
         prefs.aiModel = model
         prefs.aiAutoTranscribe = autoTranscribe
         prefs.aiLlmProvider = llmProvider
         prefs.aiDiarize = diarize
+        prefs.aiLanguage = language
+        prefs.aiAdditionalLanguages = additionalLanguages
 
         _aiServerUrl.value = serverUrl
         _aiModel.value = model
         _aiAutoTranscribe.value = autoTranscribe
         _aiLlmProvider.value = llmProvider
         _aiDiarize.value = diarize
+        _aiLanguage.value = language
+        _aiAdditionalLanguages.value = additionalLanguages
     }
 
     fun transcribeRecording(recording: CallRecording) {
         val folder = _folderUri.value ?: return
         val dotIndex = recording.displayName.lastIndexOf('.')
         val baseName = if (dotIndex != -1) recording.displayName.substring(0, dotIndex) else recording.displayName
+        val language = resolveLanguageForRecording(recording)
 
-        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "transcribeRecording: baseName=${redact(baseName)}, serverUrl=${_aiServerUrl.value}, useRemote=${_aiServerUrl.value.isNotBlank()}")
+        if (BuildConfig.DEBUG) android.util.Log.d("MainViewModel", "transcribeRecording: baseName=${redact(baseName)}, serverUrl=${_aiServerUrl.value}, useRemote=${_aiServerUrl.value.isNotBlank()}, language=$language")
 
         val inputData = androidx.work.Data.Builder()
             .putString(TranscriptionWorker.KEY_FOLDER_URI, folder)
             .putString(TranscriptionWorker.KEY_BASE_NAME, baseName)
             .putString(TranscriptionWorker.KEY_AUDIO_URI, recording.uri.toString())
             .putString(TranscriptionWorker.KEY_MODEL_NAME, _aiModel.value)
-            .putString(TranscriptionWorker.KEY_LANGUAGE, "en")
+            .putString(TranscriptionWorker.KEY_LANGUAGE, language)
             .putBoolean(TranscriptionWorker.KEY_DIARIZE, _aiDiarize.value)
             .putString(TranscriptionWorker.KEY_SERVER_URL, _aiServerUrl.value)
             .putBoolean(TranscriptionWorker.KEY_USE_REMOTE, _aiServerUrl.value.isNotBlank())
             .putString(TranscriptionWorker.KEY_LLM_PROVIDER, _aiLlmProvider.value)
+            .putString(TranscriptionWorker.KEY_ADDITIONAL_LANGUAGES, _aiAdditionalLanguages.value)
             .build()
 
         val request = OneTimeWorkRequestBuilder<TranscriptionWorker>()
@@ -540,6 +556,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _aiAutoTranscribe.value = false
         _aiLlmProvider.value = PreferencesManager.DEFAULT_AI_LLM_PROVIDER
         _aiDiarize.value = false
+        _aiLanguage.value = PreferencesManager.DEFAULT_AI_LANGUAGE
+        _aiAdditionalLanguages.value = PreferencesManager.DEFAULT_AI_ADDITIONAL_LANGUAGES
+        _contactLanguageOverrides.value = emptyMap()
         _isOnboardingCompleted.value = false
         _rawRecordings.value = emptyList()
         _selectedRecording.value = null
@@ -547,6 +566,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedMetadata.value = null
         _selectedBookmarks.value = emptyList()
         audioPlayer.stop()
+    }
+
+    fun loadContactLanguageOverrides() {
+        val json = prefs.contactLanguageMap
+        val map = mutableMap<String, String>()
+        if (json.isNotBlank()) {
+            try {
+                val obj = org.json.JSONObject(json)
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    map[key] = obj.getString(key)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        _contactLanguageOverrides.value = map
+    }
+
+    fun setContactLanguageOverride(contactName: String, languageCode: String) {
+        val current = _contactLanguageOverrides.value.toMutableMap()
+        if (languageCode.isBlank()) {
+            current.remove(contactName)
+        } else {
+            current[contactName] = languageCode
+        }
+        _contactLanguageOverrides.value = current
+        persistContactLanguageOverrides()
+    }
+
+    fun removeContactLanguageOverride(contactName: String) {
+        val current = _contactLanguageOverrides.value.toMutableMap()
+        current.remove(contactName)
+        _contactLanguageOverrides.value = current
+        persistContactLanguageOverrides()
+    }
+
+    private fun persistContactLanguageOverrides() {
+        val obj = org.json.JSONObject()
+        _contactLanguageOverrides.value.forEach { (name, lang) ->
+            obj.put(name, lang)
+        }
+        prefs.contactLanguageMap = obj.toString()
+    }
+
+    fun resolveLanguageForRecording(recording: CallRecording): String {
+        val contactName = recording.resolvedName
+        val override = _contactLanguageOverrides.value[contactName]
+        if (!override.isNullOrBlank()) {
+            return override
+        }
+        return _aiLanguage.value
     }
 
     fun selectRecording(recording: CallRecording?) {
