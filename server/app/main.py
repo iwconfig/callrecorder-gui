@@ -63,7 +63,8 @@ if not hasattr(torchaudio, "AudioMetaData"):
 import whisperx
 
 # whisperx 3.7.2 calls Pipeline.from_pretrained(..., use_auth_token=...),
-# but newer huggingface_hub / pyannote.audio expect `token` instead.
+# but pyannote.audio 3.4.0 renamed the parameter to `token`.
+# Some environments may still expect `use_auth_token`.
 # Patch at import time so diarization can download gated models.
 try:
     from pyannote.audio.core.pipeline import Pipeline
@@ -71,9 +72,27 @@ try:
 
     @classmethod
     def _patched_from_pretrained(cls, *args, **kwargs):
+        original_kwargs = dict(kwargs)
+        # whisperx 3.7.2 passes use_auth_token; pyannote.audio 3.4.0 expects token.
         if "use_auth_token" in kwargs:
             kwargs["token"] = kwargs.pop("use_auth_token")
-        return _original_from_pretrained(cls, *args, **kwargs)
+        try:
+            return _original_from_pretrained(cls, *args, **kwargs)
+        except TypeError as e:
+            if "unexpected keyword argument" in str(e):
+                kwargs.pop("token", None)
+                # try the other parameter name
+                kwargs.update(original_kwargs)
+                if "use_auth_token" in kwargs:
+                    kwargs.pop("use_auth_token")
+                try:
+                    return _original_from_pretrained(cls, *args, **kwargs)
+                except TypeError:
+                    # final fallback: no auth kwargs, rely on HF_TOKEN env / cache
+                    kwargs.pop("token", None)
+                    kwargs.pop("use_auth_token", None)
+                    return _original_from_pretrained(cls, *args, **kwargs)
+            raise
 
     Pipeline.from_pretrained = _patched_from_pretrained
 except Exception:
