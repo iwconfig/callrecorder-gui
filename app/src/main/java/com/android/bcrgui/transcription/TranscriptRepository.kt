@@ -69,6 +69,7 @@ class TranscriptRepository(private val context: Context) {
                     put("start_ms", seg.startMs)
                     put("end_ms", seg.endMs)
                     put("text", seg.text)
+                    put("speaker", seg.speaker)
                 })
             }
             put("segments", segmentsArray)
@@ -143,7 +144,8 @@ class TranscriptRepository(private val context: Context) {
                     com.android.bcrgui.model.TranscriptionSegment(
                         startMs = seg.optLong("start_ms", 0L),
                         endMs = seg.optLong("end_ms", 0L),
-                        text = seg.optString("text", "")
+                        text = seg.optString("text", ""),
+                        speaker = seg.optString("speaker", null)
                     )
                 )
             }

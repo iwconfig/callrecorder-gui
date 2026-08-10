@@ -278,7 +278,7 @@ fun PlayerActionButtons(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranscriptCard(transcript: AiTranscription?) {
+fun TranscriptCard(transcript: AiTranscription?, onSeek: (Long) -> Unit) {
     val currentTranscript = transcript
     if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: transcript_len=${currentTranscript?.text?.length}, segments=${currentTranscript?.segments?.size}")
     Card(
@@ -296,7 +296,19 @@ fun TranscriptCard(transcript: AiTranscription?) {
                 if (currentTranscript.segments.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         currentTranscript.segments.forEach { seg ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSeek(seg.startMs) }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = formatDuration(seg.startMs),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
                                 seg.speaker?.let { speaker ->
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
@@ -454,7 +466,7 @@ fun ExpandedPlayerContent(
             )
 
             if (showTranscript) {
-                TranscriptCard(transcript = transcript)
+                TranscriptCard(transcript = transcript, onSeek = { viewModel.seekTo(it) })
             }
 
             MetadataCard(metadata = metadata)
