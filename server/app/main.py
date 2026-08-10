@@ -61,6 +61,7 @@ if not hasattr(torchaudio, "AudioMetaData"):
     torchaudio.AudioMetaData = AudioMetaData
 
 import whisperx
+from whisperx.diarize import DiarizationPipeline
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 
@@ -284,7 +285,7 @@ async def transcribe(
                 raise HTTPException(status_code=500, detail="Diarization requires HF_TOKEN environment variable")
             try:
                 logger.info("Loading diarization pipeline")
-                diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
+                diarize_model = DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
             except Exception as e:
                 logger.error("Diarization model loading failed", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Failed to load diarization model: {type(e).__name__}: {e}")

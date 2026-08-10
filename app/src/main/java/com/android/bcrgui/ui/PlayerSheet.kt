@@ -278,7 +278,11 @@ fun PlayerActionButtons(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranscriptCard(transcript: AiTranscription?, onSeek: (Long) -> Unit) {
+fun TranscriptCard(
+    transcript: AiTranscription?,
+    onSeek: (Long) -> Unit,
+    onPlaySeek: (Long) -> Unit
+) {
     val currentTranscript = transcript
     if (BuildConfig.DEBUG) android.util.Log.d("PlayerSheet", "Rendering transcript card: transcript_len=${currentTranscript?.text?.length}, segments=${currentTranscript?.segments?.size}")
     Card(
@@ -299,7 +303,10 @@ fun TranscriptCard(transcript: AiTranscription?, onSeek: (Long) -> Unit) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onSeek(seg.startMs) }
+                                    .combinedClickable(
+                                        onClick = { onPlaySeek(seg.startMs) },
+                                        onLongClick = { onSeek(seg.startMs) }
+                                    )
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -466,7 +473,14 @@ fun ExpandedPlayerContent(
             )
 
             if (showTranscript) {
-                TranscriptCard(transcript = transcript, onSeek = { viewModel.seekTo(it) })
+                TranscriptCard(
+                    transcript = transcript,
+                    onSeek = { viewModel.seekTo(it) },
+                    onPlaySeek = {
+                        viewModel.play()
+                        viewModel.seekTo(it)
+                    }
+                )
             }
 
             MetadataCard(metadata = metadata)

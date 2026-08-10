@@ -663,6 +663,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         audioPlayer.seekTo(position)
     }
 
+    fun play() {
+        _selectedRecording.value?.let {
+            audioPlayer.play(it.uri, it.resolvedName, it.resolvedSubtext ?: "")
+        }
+    }
+
     fun setPlaybackSpeed(speed: Float) {
         audioPlayer.setPlaybackSpeed(speed)
     }
