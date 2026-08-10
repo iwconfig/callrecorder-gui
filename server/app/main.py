@@ -61,6 +61,24 @@ if not hasattr(torchaudio, "AudioMetaData"):
     torchaudio.AudioMetaData = AudioMetaData
 
 import whisperx
+
+# whisperx 3.7.2 calls Pipeline.from_pretrained(..., use_auth_token=...),
+# but newer huggingface_hub / pyannote.audio expect `token` instead.
+# Patch at import time so diarization can download gated models.
+try:
+    from pyannote.audio.core.pipeline import Pipeline
+    _original_from_pretrained = Pipeline.from_pretrained
+
+    @classmethod
+    def _patched_from_pretrained(cls, *args, **kwargs):
+        if "use_auth_token" in kwargs:
+            kwargs["token"] = kwargs.pop("use_auth_token")
+        return _original_from_pretrained(cls, *args, **kwargs)
+
+    Pipeline.from_pretrained = _patched_from_pretrained
+except Exception:
+    pass
+
 from whisperx.diarize import DiarizationPipeline
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
