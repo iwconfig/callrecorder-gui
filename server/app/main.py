@@ -62,39 +62,21 @@ if not hasattr(torchaudio, "AudioMetaData"):
 
 import whisperx
 
-# whisperx 3.7.2 calls Pipeline.from_pretrained(..., use_auth_token=...),
-# but pyannote.audio 3.4.0 renamed the parameter to `token`.
-# Some environments may still expect `use_auth_token`.
-# Patch at import time so diarization can download gated models.
+# whisperx 3.7.2 passes use_auth_token down to pyannote.audio's
+# Pipeline.from_pretrained, which forwards it to huggingface_hub's
+# hf_hub_download. Newer huggingface_hub expects `token` instead.
+# Patch hf_hub_download at import time so diarization can download
+# gated models regardless of which kwarg name the caller uses.
 try:
-    from pyannote.audio.core.pipeline import Pipeline
-    _original_from_pretrained = Pipeline.from_pretrained
+    import huggingface_hub.utils as hf_utils
+    _original_hf_hub_download = hf_utils.hf_hub_download
 
-    @classmethod
-    def _patched_from_pretrained(cls, *args, **kwargs):
-        original_kwargs = dict(kwargs)
-        # whisperx 3.7.2 passes use_auth_token; pyannote.audio 3.4.0 expects token.
+    def _patched_hf_hub_download(*args, **kwargs):
         if "use_auth_token" in kwargs:
             kwargs["token"] = kwargs.pop("use_auth_token")
-        try:
-            # _original_from_pretrained is already bound as a classmethod on Pipeline,
-            # so we must NOT pass cls explicitly or it becomes the first positional arg.
-            return _original_from_pretrained(*args, **kwargs)
-        except TypeError as e:
-            if "unexpected keyword argument" in str(e):
-                kwargs.pop("token", None)
-                kwargs.update(original_kwargs)
-                if "use_auth_token" in kwargs:
-                    kwargs.pop("use_auth_token")
-                try:
-                    return _original_from_pretrained(*args, **kwargs)
-                except TypeError:
-                    kwargs.pop("token", None)
-                    kwargs.pop("use_auth_token", None)
-                    return _original_from_pretrained(*args, **kwargs)
-            raise
+        return _original_hf_hub_download(*args, **kwargs)
 
-    Pipeline.from_pretrained = _patched_from_pretrained
+    hf_utils.hf_hub_download = _patched_hf_hub_download
 except Exception:
     pass
 
