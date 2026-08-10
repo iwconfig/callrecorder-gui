@@ -77,21 +77,21 @@ try:
         if "use_auth_token" in kwargs:
             kwargs["token"] = kwargs.pop("use_auth_token")
         try:
-            return _original_from_pretrained(cls, *args, **kwargs)
+            # _original_from_pretrained is already bound as a classmethod on Pipeline,
+            # so we must NOT pass cls explicitly or it becomes the first positional arg.
+            return _original_from_pretrained(*args, **kwargs)
         except TypeError as e:
             if "unexpected keyword argument" in str(e):
                 kwargs.pop("token", None)
-                # try the other parameter name
                 kwargs.update(original_kwargs)
                 if "use_auth_token" in kwargs:
                     kwargs.pop("use_auth_token")
                 try:
-                    return _original_from_pretrained(cls, *args, **kwargs)
+                    return _original_from_pretrained(*args, **kwargs)
                 except TypeError:
-                    # final fallback: no auth kwargs, rely on HF_TOKEN env / cache
                     kwargs.pop("token", None)
                     kwargs.pop("use_auth_token", None)
-                    return _original_from_pretrained(cls, *args, **kwargs)
+                    return _original_from_pretrained(*args, **kwargs)
             raise
 
     Pipeline.from_pretrained = _patched_from_pretrained
