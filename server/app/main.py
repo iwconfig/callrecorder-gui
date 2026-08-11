@@ -60,25 +60,40 @@ if not hasattr(torchaudio, "AudioMetaData"):
             self.encoding = encoding
     torchaudio.AudioMetaData = AudioMetaData
 
-import whisperx
-
-# whisperx 3.7.2 passes use_auth_token down to pyannote.audio's
-# Pipeline.from_pretrained, which forwards it to huggingface_hub's
-# hf_hub_download. Newer huggingface_hub expects `token` instead.
-# Patch hf_hub_download at import time so diarization can download
-# gated models regardless of which kwarg name the caller uses.
+# whisperx 3.7.2 (and pyannote.audio 3.4.0) pass `use_auth_token` down to
+# huggingface_hub's hf_hub_download/snapshot_download. Newer huggingface_hub
+# removed that kwarg and expects `token` instead -> TypeError at diarization
+# model download.
+#
+# IMPORTANT: this MUST run BEFORE `import whisperx`. pyannote.audio does
+# `from huggingface_hub import hf_hub_download`, so it binds the function at
+# import time; patching after the import leaves pyannote with the original,
+# unpatched function (the bug in the previous shim).
 try:
+    import huggingface_hub
     import huggingface_hub.utils as hf_utils
-    _original_hf_hub_download = hf_utils.hf_hub_download
+    import huggingface_hub.file_download as hf_file_download
 
-    def _patched_hf_hub_download(*args, **kwargs):
+    def _translate_use_auth_token(kwargs):
         if "use_auth_token" in kwargs:
             kwargs["token"] = kwargs.pop("use_auth_token")
-        return _original_hf_hub_download(*args, **kwargs)
+        return kwargs
 
-    hf_utils.hf_hub_download = _patched_hf_hub_download
+    def _wrap(fn):
+        @functools.wraps(fn)
+        def _wrapper(*args, **kwargs):
+            return fn(*args, **_translate_use_auth_token(kwargs))
+        return _wrapper
+
+    for _mod in (huggingface_hub, hf_utils, hf_file_download):
+        for _name in ("hf_hub_download", "snapshot_download", "cached_download", "hf_hub_url"):
+            _orig = getattr(_mod, _name, None)
+            if _orig is not None:
+                setattr(_mod, _name, _wrap(_orig))
 except Exception:
     pass
+
+import whisperx
 
 from whisperx.diarize import DiarizationPipeline
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -93,6 +108,27 @@ COMPUTE_TYPE = os.getenv("COMPUTE_TYPE", "int8_float32")
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
 LLM_URL = os.getenv("LLM_URL", "")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
+# Diagnostics for gated-model (403 GatedRepo) failures: never log the secret,
+# but surface whether it is present, well-formed, and free of stray whitespace.
+if HF_TOKEN:
+    _hf_has_ws = HF_TOKEN != HF_TOKEN.strip()
+    logger.info(
+        "HF_TOKEN present: len=%d, prefix=%r, leading/trailing whitespace=%s",
+        len(HF_TOKEN),
+        (HF_TOKEN[:4] + "..." if len(HF_TOKEN) > 4 else HF_TOKEN),
+        _hf_has_ws,
+    )
+    if _hf_has_ws:
+        # Tokens copied from files/secrets/.env often carry a trailing newline,
+        # which yields an invalid "Bearer hf_xxx\n" header -> 403 GatedRepo.
+        logger.warning("HF_TOKEN has leading/trailing whitespace; stripping it.")
+        HF_TOKEN = HF_TOKEN.strip()
+else:
+    logger.warning(
+        "HF_TOKEN is not set; gated models (e.g. pyannote/*) will fail with "
+        "403 GatedRepo. Set HF_TOKEN to a valid read token from an account "
+        "that has accepted the model's gating terms."
+    )
 CACHE_DIR = Path(os.getenv("CACHE_DIR", "/root/.cache/huggingface"))
 ASR_INITIAL_PROMPT = os.getenv("ASR_INITIAL_PROMPT", "")
 
@@ -308,6 +344,20 @@ async def transcribe(
             except Exception as e:
                 logger.error("Diarization model loading failed", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Failed to load diarization model: {type(e).__name__}: {e}")
+            if diarize_model is None:
+                # whisperx returns None (after logging the real cause) when the
+                # gated model can't be downloaded. Surface that clearly instead of
+                # crashing later on `None.to(...)`.
+                logger.error(
+                    "Diarization model download returned None (gated/forbidden). "
+                    "Verify HF_TOKEN is valid and the account has accepted access to "
+                    "pyannote/speaker-diarization-3.1 (and its dependency models)."
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Diarization model download failed (gated/forbidden). "
+                           "Check HF_TOKEN and accept model access on huggingface.co.",
+                )
             logger.info("Running diarization")
             diarize_segments = diarize_model(
                 audio_to_process,
